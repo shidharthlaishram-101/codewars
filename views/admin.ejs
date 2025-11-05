@@ -8,11 +8,11 @@
 </head>
 <body>
 
-  <header>
+  <!-- <header>
     <nav class="container">
       <a href="/admin" class="logo">CodeWars Admin</a>
     </nav>
-  </header>
+  </header> -->
 
   <main class="container">
     <h1>Registered Teams</h1>
@@ -52,7 +52,7 @@
                 <% if (Array.isArray(team.participants)) { %>
                   <% team.participants.forEach((p, i) => { %>
                     <div class="participant-block">
-                      <strong>Participant <%= i + 1 %></strong><br>
+                      <!-- <strong>Participant <%= i + 1 %></strong><br> -->
                       Name: <%= p.name || "N/A" %><br>
                       Email: <%= p.email || "N/A" %><br>
                       Phone: <%= p.phone || "N/A" %><br>
@@ -81,9 +81,9 @@
     <% } %>
   </main>
 
-  <footer>
+  <!-- <footer>
     <p>&copy; 2025 CodeWars Admin. All rights reserved.</p>
-  </footer>
+  </footer> -->
 
   <script>
     function confirmDelete() {

@@ -166,7 +166,7 @@ main.container h1 {
 
 /* Highlight email */
 .participant-table td:nth-child(3) {
-    color: var(--primary-color);
+    /* color: var(--primary-color); */
     font-weight: 500;
 }
 
