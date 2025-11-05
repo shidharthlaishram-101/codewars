@@ -1,1 +1,5 @@
 serviceAccountKey.json
+convert-service-account.js
+serviceAccountKey-singleline.txt
+VERCEL_ENV_SETUP.md
+VERCEL_DEPLOYMENT.md

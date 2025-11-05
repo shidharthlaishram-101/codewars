@@ -34,15 +34,50 @@ function initializeFirebase() {
 
   try {
     // Try to load from environment variable first (for Vercel)
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    const envKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (envKey) {
       console.log("🔑 Loading Firebase service account from environment variable...");
-      console.log("   Env var length:", process.env.FIREBASE_SERVICE_ACCOUNT_KEY.length);
+      console.log("   Env var length:", envKey.length);
+      console.log("   Env var first 50 chars:", envKey.substring(0, 50));
+      console.log("   Env var last 50 chars:", envKey.substring(Math.max(0, envKey.length - 50)));
+      
       try {
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+        // Try parsing as-is first
+        serviceAccount = JSON.parse(envKey);
+        console.log("   ✅ JSON parsed successfully");
       } catch (parseError) {
         console.error("❌ Error parsing FIREBASE_SERVICE_ACCOUNT_KEY:", parseError.message);
-        throw new Error("Invalid JSON in FIREBASE_SERVICE_ACCOUNT_KEY environment variable");
+        console.error("   Parse error at position:", parseError.message.match(/position (\d+)/));
+        
+        // Try to fix common issues
+        let fixedKey = envKey;
+        // Remove any actual newlines that might have been added
+        fixedKey = fixedKey.replace(/(?<!")\r?\n(?![^"]*")/g, '');
+        // Ensure proper formatting
+        try {
+          serviceAccount = JSON.parse(fixedKey);
+          console.log("   ✅ JSON parsed successfully after fixing");
+        } catch (secondParseError) {
+          console.error("❌ Still failed after fix attempt:", secondParseError.message);
+          throw new Error("Invalid JSON in FIREBASE_SERVICE_ACCOUNT_KEY environment variable. Check the format - it should be a single-line JSON string.");
+        }
       }
+      
+      // Validate required fields
+      if (!serviceAccount.type || serviceAccount.type !== 'service_account') {
+        throw new Error("Invalid service account: missing or incorrect 'type' field");
+      }
+      if (!serviceAccount.project_id) {
+        throw new Error("Invalid service account: missing 'project_id' field");
+      }
+      if (!serviceAccount.private_key) {
+        throw new Error("Invalid service account: missing 'private_key' field");
+      }
+      if (!serviceAccount.client_email) {
+        throw new Error("Invalid service account: missing 'client_email' field");
+      }
+      
+      console.log("   ✅ Service account validation passed");
     } else {
       // Fallback to local file (for development)
       console.log("🔑 Loading Firebase service account from local file...");
@@ -511,12 +546,22 @@ app.post("/admin/delete", async (req, res) => {
 
 // Diagnostic endpoint (remove in production or protect with auth)
 app.get("/health", (req, res) => {
+  // Try to initialize if not already done
+  if (!db) {
+    console.log("⚠️ Health check: DB not initialized, attempting initialization...");
+    initializeFirebase();
+  }
+  
   res.json({
     status: "ok",
     firebaseInitialized: firebaseInitialized,
     dbAvailable: !!db,
     serviceAccountAvailable: !!serviceAccount,
+    serviceAccountProjectId: serviceAccount ? serviceAccount.project_id : null,
     nodeEnv: process.env.NODE_ENV || "development",
+    firebaseServiceAccountKeyExists: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+    firebaseServiceAccountKeyLength: process.env.FIREBASE_SERVICE_ACCOUNT_KEY ? process.env.FIREBASE_SERVICE_ACCOUNT_KEY.length : 0,
+    adminAppsCount: admin.apps.length,
     timestamp: new Date().toISOString()
   });
 });
