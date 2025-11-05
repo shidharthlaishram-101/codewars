@@ -24,44 +24,62 @@ let serviceAccount;
 try {
   // Try to load from environment variable first (for Vercel)
   if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    console.log("🔑 Loading Firebase service account from environment variable...");
     serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
   } else {
     // Fallback to local file (for development)
+    console.log("🔑 Loading Firebase service account from local file...");
     serviceAccount = require("./serviceAccountKey.json");
   }
+  console.log("✅ Firebase service account loaded successfully");
 } catch (error) {
   console.error("❌ Error loading Firebase service account:", error.message);
+  console.error("Full error:", error);
   // If neither works, try to initialize without credentials (won't work but prevents crash)
   serviceAccount = null;
 }
 
-if (serviceAccount) {
-  // Check if Firebase is already initialized (for serverless)
-  if (admin.apps.length === 0) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-  }
-}
-
 // Initialize Firestore database
 let db;
-try {
-  db = admin.firestore();
-  
-  // Confirm Firestore connection (only in development)
-  if (process.env.NODE_ENV !== "production") {
-    db.listCollections()
-      .then(collections => {
-        console.log("✅ Firestore connected! Existing collections:");
-        if (collections.length === 0) console.log("   (no collections yet)");
-        else collections.forEach(c => console.log(" -", c.id));
-      })
-      .catch(err => console.error("❌ Firestore connection failed:", err.message));
+let firebaseInitialized = false;
+
+if (serviceAccount) {
+  try {
+    // Check if Firebase is already initialized (for serverless)
+    if (admin.apps.length === 0) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      console.log("✅ Firebase Admin initialized successfully");
+      firebaseInitialized = true;
+    } else {
+      console.log("✅ Firebase Admin already initialized");
+      firebaseInitialized = true;
+    }
+    
+    // Initialize Firestore
+    db = admin.firestore();
+    console.log("✅ Firestore database initialized");
+    
+    // Confirm Firestore connection (only in development)
+    if (process.env.NODE_ENV !== "production") {
+      db.listCollections()
+        .then(collections => {
+          console.log("✅ Firestore connected! Existing collections:");
+          if (collections.length === 0) console.log("   (no collections yet)");
+          else collections.forEach(c => console.log(" -", c.id));
+        })
+        .catch(err => console.error("❌ Firestore connection failed:", err.message));
+    }
+  } catch (error) {
+    console.error("❌ Error initializing Firebase/Firestore:", error.message);
+    console.error("Full error:", error);
+    db = null;
+    firebaseInitialized = false;
   }
-} catch (error) {
-  console.error("❌ Error initializing Firestore:", error.message);
-  db = null;
+} else {
+  console.error("❌ Firebase service account not available. Database will not work.");
+  console.error("Please set FIREBASE_SERVICE_ACCOUNT_KEY environment variable or provide serviceAccountKey.json");
 }
 
 // Express setup
@@ -176,7 +194,14 @@ app.post("/register", async (req, res) => {
 
   try {
     if (!db) {
-      throw new Error("Database not initialized. Please check Firebase configuration.");
+      const errorMsg = "Database not initialized. Please check Firebase configuration.";
+      console.error("❌", errorMsg);
+      console.error("Firebase initialized:", firebaseInitialized);
+      console.error("Service account available:", !!serviceAccount);
+      return res.status(500).render("registration", {
+        title: "Register - Prajyuktam Coding Competition",
+        error: errorMsg
+      });
     }
     
     // Generate a unique code (string)
@@ -196,9 +221,23 @@ app.post("/register", async (req, res) => {
     res.redirect(`/success?code=${code}`);
   } catch (error) {
     console.error("❌ Error saving to Firebase:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    // Provide more helpful error message
+    let errorMessage = "Server error while saving registration. Please try again later.";
+    if (error.message && error.message.includes("permission")) {
+      errorMessage = "Permission denied. Please check Firebase security rules.";
+    } else if (error.message && error.message.includes("network")) {
+      errorMessage = "Network error. Please check your internet connection.";
+    }
+    
     res.status(500).render("registration", {
       title: "Register - Prajyuktam Coding Competition",
-      error: "Server error while saving registration. Please try again later."
+      error: errorMessage
     });
   }
 });
@@ -392,6 +431,18 @@ app.post("/admin/delete", async (req, res) => {
     console.error("❌ Error deleting registration:", err);
     res.status(500).send("Internal Server Error");
   }
+});
+
+// Diagnostic endpoint (remove in production or protect with auth)
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    firebaseInitialized: firebaseInitialized,
+    dbAvailable: !!db,
+    serviceAccountAvailable: !!serviceAccount,
+    nodeEnv: process.env.NODE_ENV || "development",
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Export for Vercel serverless function
