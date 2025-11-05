@@ -7,34 +7,62 @@ const session = require("express-session");
 
 // Session middleware (add before routes)
 app.use(session({
-  secret: "codewars_secret_key", // change to an env variable in production
+  secret: process.env.SESSION_SECRET || "codewars_secret_key",
   resave: false,
   saveUninitialized: false,
   cookie: {
     maxAge: 60 * 60 * 1000, // 1 hour session
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
   }
 }));
 
 
 // Initialize Firebase Admin SDK
-const serviceAccount = require("./serviceAccountKey.json");
-// or from env: JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+let serviceAccount;
+try {
+  // Try to load from environment variable first (for Vercel)
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+  } else {
+    // Fallback to local file (for development)
+    serviceAccount = require("./serviceAccountKey.json");
+  }
+} catch (error) {
+  console.error("❌ Error loading Firebase service account:", error.message);
+  // If neither works, try to initialize without credentials (won't work but prevents crash)
+  serviceAccount = null;
+}
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+if (serviceAccount) {
+  // Check if Firebase is already initialized (for serverless)
+  if (admin.apps.length === 0) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  }
+}
 
-const db = admin.firestore();
-
-// Confirm Firestore connection
-db.listCollections()
-  .then(collections => {
-    console.log("✅ Firestore connected! Existing collections:");
-    if (collections.length === 0) console.log("   (no collections yet)");
-    else collections.forEach(c => console.log(" -", c.id));
-  })
-  .catch(err => console.error("❌ Firestore connection failed:", err.message));
+// Initialize Firestore database
+let db;
+try {
+  db = admin.firestore();
+  
+  // Confirm Firestore connection (only in development)
+  if (process.env.NODE_ENV !== "production") {
+    db.listCollections()
+      .then(collections => {
+        console.log("✅ Firestore connected! Existing collections:");
+        if (collections.length === 0) console.log("   (no collections yet)");
+        else collections.forEach(c => console.log(" -", c.id));
+      })
+      .catch(err => console.error("❌ Firestore connection failed:", err.message));
+  }
+} catch (error) {
+  console.error("❌ Error initializing Firestore:", error.message);
+  db = null;
+}
 
 // Express setup
 app.set("view engine", "ejs");
@@ -54,6 +82,10 @@ app.get("/registration", (req, res) => {
 
 // Helper: generate unique 4-digit code
 async function generateUniqueCode() {
+  if (!db) {
+    throw new Error("Database not initialized");
+  }
+  
   const min = 1000;
   const max = 9999;
   let code;
@@ -143,6 +175,10 @@ app.post("/register", async (req, res) => {
   }
 
   try {
+    if (!db) {
+      throw new Error("Database not initialized. Please check Firebase configuration.");
+    }
+    
     // Generate a unique code (string)
     const code = await generateUniqueCode();
 
@@ -161,6 +197,7 @@ app.post("/register", async (req, res) => {
   } catch (error) {
     console.error("❌ Error saving to Firebase:", error);
     res.status(500).render("registration", {
+      title: "Register - Prajyuktam Coding Competition",
       error: "Server error while saving registration. Please try again later."
     });
   }
@@ -182,6 +219,10 @@ app.post("/auth", async (req, res) => {
   const { uniqueCode, email } = req.body;
 
   try {
+    if (!db) {
+      throw new Error("Database not initialized");
+    }
+    
     if (!uniqueCode || !email) {
       return res.render("auth", { error: "Please enter both code and email." });
     }
@@ -228,6 +269,10 @@ app.post("/auth", async (req, res) => {
 // Landing page - show team info from the code
 app.get("/landing", async (req, res) => {
   try {
+    if (!db) {
+      throw new Error("Database not initialized");
+    }
+    
     // Step 1 — check if user is authenticated via session
     if (!req.session || !req.session.authenticated) {
       return res.redirect("/auth");
@@ -294,6 +339,66 @@ app.get("/contest", (req, res) => {
   res.render("contest", { title: "CodeWars Contest" });
 });
 
-// Start server
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
+// Admin Dashboard — Fetch all registered teams
+app.get("/admin", async (req, res) => {
+  try {
+    if (!db) {
+      throw new Error("Database not initialized");
+    }
+    
+    const snapshot = await db.collection("registrations")
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const participants = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    res.render("admin", { title: "Admin Dashboard", participants });
+  } catch (err) {
+    console.error("❌ Error fetching participants:", err);
+    res.render("admin", { title: "Admin Dashboard", participants: [] });
+  }
+});
+
+// Delete a team registration
+app.post("/admin/delete", async (req, res) => {
+  try {
+    if (!db) {
+      throw new Error("Database not initialized");
+    }
+    
+    const { id } = req.body;
+    if (!id) {
+      console.log("❌ No ID received for deletion");
+      return res.status(400).send("Missing registration ID");
+    }
+
+    const docRef = db.collection("registrations").doc(id);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      console.log(`⚠️ Document with ID ${id} not found in Firestore`);
+      return res.redirect("/admin");
+    }
+
+    await docRef.delete();
+    console.log(`✅ Deleted team registration: ${id}`);
+
+    // Redirect for Firestore consistency
+    res.redirect("/admin");
+  } catch (err) {
+    console.error("❌ Error deleting registration:", err);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+// Export for Vercel serverless function
+module.exports = app;
+
+// Start server locally (only if not in Vercel environment)
+if (require.main === module) {
+  const PORT = process.env.PORT || 8080;
+  app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
+}
