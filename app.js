@@ -6,8 +6,10 @@ const app = express();
 const session = require("express-session");
 
 // Session middleware (add before routes)
+// Use an environment variable for the session secret in production.
+// Falls back to a local default only for development.
 app.use(session({
-  secret: "codewars_secret_key", // change to an env variable in production
+  secret: process.env.SESSION_SECRET || "dev_local_secret",
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -18,8 +20,20 @@ app.use(session({
 
 
 // Initialize Firebase Admin SDK
-const serviceAccount = require("./serviceAccountKey.json");
-// or from env: JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+// Prefer loading the service account JSON from an environment variable
+// (FIREBASE_SERVICE_ACCOUNT_KEY) so you don't need to commit the key file.
+// If the env var is not present, fall back to the local `serviceAccountKey.json`.
+let serviceAccount;
+if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+  try {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+  } catch (err) {
+    console.error("❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", err);
+    process.exit(1);
+  }
+} else {
+  serviceAccount = require("./serviceAccountKey.json");
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
