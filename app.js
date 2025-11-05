@@ -1,13 +1,12 @@
 const express = require("express");
 const path = require("path");
-const admin = require("firebase-admin");
-
+const { admin, db } = require("./firebaseServer");
 const app = express();
 const session = require("express-session");
 
 // Session middleware (add before routes)
 app.use(session({
-  secret: "codewars_secret_key", // change to an env variable in production
+  secret: process.env.SESSION_SECRET || "codewars_secret_key",
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -16,18 +15,14 @@ app.use(session({
   }
 }));
 
+// Express setup
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+app.use(express.static(path.join(__dirname, "public")));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
-// Initialize Firebase Admin SDK
-const serviceAccount = require("./serviceAccountKey.json");
-// or from env: JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
-
-const db = admin.firestore();
-
-// Confirm Firestore connection
+// Confirm Firestore connection (log collections if available)
 db.listCollections()
   .then(collections => {
     console.log("✅ Firestore connected! Existing collections:");
@@ -35,13 +30,6 @@ db.listCollections()
     else collections.forEach(c => console.log(" -", c.id));
   })
   .catch(err => console.error("❌ Firestore connection failed:", err.message));
-
-// Express setup
-app.set("view engine", "ejs");
-app.set("views", path.join(__dirname, "views"));
-app.use(express.static(path.join(__dirname, "public")));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
 
 // Pages
 app.get("/", (req, res) => {
