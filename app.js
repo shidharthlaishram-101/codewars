@@ -3,6 +3,9 @@ const path = require("path");
 const admin = require("firebase-admin");
 
 const app = express();
+
+module.exports = app;
+
 const session = require("express-session");
 
 // Session middleware (add before routes)
@@ -296,5 +299,5 @@ app.get("/contest", (req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
+// const PORT = process.env.PORT || 8080;
+// app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
