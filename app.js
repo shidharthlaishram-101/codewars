@@ -1,5 +1,6 @@
 const express = require("express");
 const path = require("path");
+const fs = require("fs");
 const admin = require("firebase-admin");
 
 const app = express();
@@ -21,6 +22,9 @@ app.use(session({
 
 // Initialize Firebase Admin SDK
 let serviceAccount;
+let db = null;
+let firebaseInitialized = false;
+
 try {
   // Try to load from environment variable first (for Vercel)
   if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
@@ -29,39 +33,65 @@ try {
   } else {
     // Fallback to local file (for development)
     console.log("🔑 Loading Firebase service account from local file...");
-    serviceAccount = require("./serviceAccountKey.json");
+    const serviceAccountPath = path.join(__dirname, "serviceAccountKey.json");
+    console.log("   Looking for file at:", serviceAccountPath);
+    
+    // Check if file exists
+    if (!fs.existsSync(serviceAccountPath)) {
+      throw new Error(`Service account file not found at: ${serviceAccountPath}`);
+    }
+    
+    try {
+      const fileContent = fs.readFileSync(serviceAccountPath, "utf8");
+      serviceAccount = JSON.parse(fileContent);
+      console.log("   File found and parsed successfully");
+    } catch (fileError) {
+      console.error("❌ Error loading serviceAccountKey.json:", fileError.message);
+      if (fileError instanceof SyntaxError) {
+        console.error("   This looks like a JSON parsing error. Check if the file is valid JSON.");
+      }
+      throw fileError;
+    }
   }
   console.log("✅ Firebase service account loaded successfully");
+  console.log("   Project ID:", serviceAccount.project_id);
+  console.log("   Client Email:", serviceAccount.client_email);
 } catch (error) {
   console.error("❌ Error loading Firebase service account:", error.message);
   console.error("Full error:", error);
-  // If neither works, try to initialize without credentials (won't work but prevents crash)
   serviceAccount = null;
 }
 
-// Initialize Firestore database
-let db;
-let firebaseInitialized = false;
-
+// Initialize Firebase Admin and Firestore if service account is available
 if (serviceAccount) {
   try {
     // Check if Firebase is already initialized (for serverless)
     if (admin.apps.length === 0) {
+      console.log("🔄 Initializing Firebase Admin SDK...");
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
       });
       console.log("✅ Firebase Admin initialized successfully");
       firebaseInitialized = true;
     } else {
-      console.log("✅ Firebase Admin already initialized");
+      console.log("✅ Firebase Admin already initialized (serverless reuse)");
+      console.log("   Number of apps:", admin.apps.length);
       firebaseInitialized = true;
     }
     
-    // Initialize Firestore
-    db = admin.firestore();
-    console.log("✅ Firestore database initialized");
+    // Always initialize Firestore (even if Firebase was already initialized)
+    console.log("🔄 Initializing Firestore database...");
+    try {
+      db = admin.firestore();
+      console.log("✅ Firestore database initialized");
+      console.log("   DB type:", typeof db);
+      console.log("   DB available:", !!db);
+    } catch (firestoreError) {
+      console.error("❌ Error getting Firestore instance:", firestoreError.message);
+      throw firestoreError;
+    }
     
-    // Confirm Firestore connection (only in development)
+    // Test connection (only in development)
     if (process.env.NODE_ENV !== "production") {
       db.listCollections()
         .then(collections => {
@@ -69,17 +99,23 @@ if (serviceAccount) {
           if (collections.length === 0) console.log("   (no collections yet)");
           else collections.forEach(c => console.log(" -", c.id));
         })
-        .catch(err => console.error("❌ Firestore connection failed:", err.message));
+        .catch(err => {
+          console.error("❌ Firestore connection test failed:", err.message);
+          console.error("   This might be a permissions issue. Check your Firebase security rules.");
+        });
     }
   } catch (error) {
     console.error("❌ Error initializing Firebase/Firestore:", error.message);
-    console.error("Full error:", error);
+    console.error("Error name:", error.name);
+    console.error("Error stack:", error.stack);
     db = null;
     firebaseInitialized = false;
   }
 } else {
   console.error("❌ Firebase service account not available. Database will not work.");
   console.error("Please set FIREBASE_SERVICE_ACCOUNT_KEY environment variable or provide serviceAccountKey.json");
+  console.error("   Current working directory:", __dirname);
+  console.error("   NODE_ENV:", process.env.NODE_ENV || "development");
 }
 
 // Express setup
@@ -196,12 +232,31 @@ app.post("/register", async (req, res) => {
     if (!db) {
       const errorMsg = "Database not initialized. Please check Firebase configuration.";
       console.error("❌", errorMsg);
-      console.error("Firebase initialized:", firebaseInitialized);
-      console.error("Service account available:", !!serviceAccount);
-      return res.status(500).render("registration", {
-        title: "Register - Prajyuktam Coding Competition",
-        error: errorMsg
-      });
+      console.error("   Firebase initialized:", firebaseInitialized);
+      console.error("   Service account available:", !!serviceAccount);
+      console.error("   DB value:", db);
+      console.error("   Admin apps count:", admin.apps.length);
+      
+      // Try to reinitialize if service account exists
+      if (serviceAccount && admin.apps.length === 0) {
+        console.log("🔄 Attempting to reinitialize Firebase...");
+        try {
+          admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+          });
+          db = admin.firestore();
+          console.log("✅ Firebase reinitialized successfully");
+        } catch (reinitError) {
+          console.error("❌ Reinitialization failed:", reinitError.message);
+        }
+      }
+      
+      if (!db) {
+        return res.status(500).render("registration", {
+          title: "Register - Prajyuktam Coding Competition",
+          error: errorMsg + " Please check server logs for details."
+        });
+      }
     }
     
     // Generate a unique code (string)
