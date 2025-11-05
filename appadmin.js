@@ -4,6 +4,8 @@ const { db } = require("./firebaseServer"); // Firebase Admin SDK initialized
 
 const app = express();
 
+module.exports = app;
+
 // View engine setup
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
@@ -60,6 +62,6 @@ app.post("/admin/delete", async (req, res) => {
   }
 });
 
-// ✅ Run Admin Server
-const PORT = process.env.ADMIN_PORT || 8081;
-app.listen(PORT, () => console.log(`🚀 Admin server running at http://localhost:${PORT}/admin`));
+// // ✅ Run Admin Server
+// const PORT = process.env.ADMIN_PORT || 8081;
+// app.listen(PORT, () => console.log(`🚀 Admin server running at http://localhost:${PORT}/admin`));
