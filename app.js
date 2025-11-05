@@ -25,98 +25,126 @@ let serviceAccount;
 let db = null;
 let firebaseInitialized = false;
 
-try {
-  // Try to load from environment variable first (for Vercel)
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-    console.log("🔑 Loading Firebase service account from environment variable...");
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-  } else {
-    // Fallback to local file (for development)
-    console.log("🔑 Loading Firebase service account from local file...");
-    const serviceAccountPath = path.join(__dirname, "serviceAccountKey.json");
-    console.log("   Looking for file at:", serviceAccountPath);
-    
-    // Check if file exists
-    if (!fs.existsSync(serviceAccountPath)) {
-      throw new Error(`Service account file not found at: ${serviceAccountPath}`);
-    }
-    
-    try {
-      const fileContent = fs.readFileSync(serviceAccountPath, "utf8");
-      serviceAccount = JSON.parse(fileContent);
-      console.log("   File found and parsed successfully");
-    } catch (fileError) {
-      console.error("❌ Error loading serviceAccountKey.json:", fileError.message);
-      if (fileError instanceof SyntaxError) {
-        console.error("   This looks like a JSON parsing error. Check if the file is valid JSON.");
-      }
-      throw fileError;
-    }
+// Function to initialize Firebase (can be called multiple times safely)
+function initializeFirebase() {
+  // If already initialized, return
+  if (firebaseInitialized && db) {
+    return db;
   }
-  console.log("✅ Firebase service account loaded successfully");
-  console.log("   Project ID:", serviceAccount.project_id);
-  console.log("   Client Email:", serviceAccount.client_email);
-} catch (error) {
-  console.error("❌ Error loading Firebase service account:", error.message);
-  console.error("Full error:", error);
-  serviceAccount = null;
+
+  try {
+    // Try to load from environment variable first (for Vercel)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      console.log("🔑 Loading Firebase service account from environment variable...");
+      console.log("   Env var length:", process.env.FIREBASE_SERVICE_ACCOUNT_KEY.length);
+      try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      } catch (parseError) {
+        console.error("❌ Error parsing FIREBASE_SERVICE_ACCOUNT_KEY:", parseError.message);
+        throw new Error("Invalid JSON in FIREBASE_SERVICE_ACCOUNT_KEY environment variable");
+      }
+    } else {
+      // Fallback to local file (for development)
+      console.log("🔑 Loading Firebase service account from local file...");
+      const serviceAccountPath = path.join(__dirname, "serviceAccountKey.json");
+      console.log("   Looking for file at:", serviceAccountPath);
+      
+      // Check if file exists
+      if (!fs.existsSync(serviceAccountPath)) {
+        throw new Error(`Service account file not found at: ${serviceAccountPath}`);
+      }
+      
+      try {
+        const fileContent = fs.readFileSync(serviceAccountPath, "utf8");
+        serviceAccount = JSON.parse(fileContent);
+        console.log("   File found and parsed successfully");
+      } catch (fileError) {
+        console.error("❌ Error loading serviceAccountKey.json:", fileError.message);
+        if (fileError instanceof SyntaxError) {
+          console.error("   This looks like a JSON parsing error. Check if the file is valid JSON.");
+        }
+        throw fileError;
+      }
+    }
+    
+    if (!serviceAccount) {
+      throw new Error("Service account is null or undefined");
+    }
+    
+    console.log("✅ Firebase service account loaded successfully");
+    console.log("   Project ID:", serviceAccount.project_id);
+    console.log("   Client Email:", serviceAccount.client_email);
+  } catch (error) {
+    console.error("❌ Error loading Firebase service account:", error.message);
+    console.error("Full error:", error);
+    serviceAccount = null;
+    return null;
+  }
+
+  // Initialize Firebase Admin and Firestore if service account is available
+  if (serviceAccount) {
+    try {
+      // Check if Firebase is already initialized (for serverless)
+      if (admin.apps.length === 0) {
+        console.log("🔄 Initializing Firebase Admin SDK...");
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+        });
+        console.log("✅ Firebase Admin initialized successfully");
+        firebaseInitialized = true;
+      } else {
+        console.log("✅ Firebase Admin already initialized (serverless reuse)");
+        console.log("   Number of apps:", admin.apps.length);
+        firebaseInitialized = true;
+      }
+      
+      // Always initialize Firestore (even if Firebase was already initialized)
+      console.log("🔄 Initializing Firestore database...");
+      try {
+        db = admin.firestore();
+        console.log("✅ Firestore database initialized");
+        console.log("   DB type:", typeof db);
+        console.log("   DB available:", !!db);
+      } catch (firestoreError) {
+        console.error("❌ Error getting Firestore instance:", firestoreError.message);
+        throw firestoreError;
+      }
+      
+      // Test connection (only in development)
+      if (process.env.NODE_ENV !== "production") {
+        db.listCollections()
+          .then(collections => {
+            console.log("✅ Firestore connected! Existing collections:");
+            if (collections.length === 0) console.log("   (no collections yet)");
+            else collections.forEach(c => console.log(" -", c.id));
+          })
+          .catch(err => {
+            console.error("❌ Firestore connection test failed:", err.message);
+            console.error("   This might be a permissions issue. Check your Firebase security rules.");
+          });
+      }
+      
+      return db;
+    } catch (error) {
+      console.error("❌ Error initializing Firebase/Firestore:", error.message);
+      console.error("Error name:", error.name);
+      console.error("Error stack:", error.stack);
+      db = null;
+      firebaseInitialized = false;
+      return null;
+    }
+  } else {
+    console.error("❌ Firebase service account not available. Database will not work.");
+    console.error("Please set FIREBASE_SERVICE_ACCOUNT_KEY environment variable or provide serviceAccountKey.json");
+    console.error("   Current working directory:", __dirname);
+    console.error("   NODE_ENV:", process.env.NODE_ENV || "development");
+    console.error("   FIREBASE_SERVICE_ACCOUNT_KEY exists:", !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    return null;
+  }
 }
 
-// Initialize Firebase Admin and Firestore if service account is available
-if (serviceAccount) {
-  try {
-    // Check if Firebase is already initialized (for serverless)
-    if (admin.apps.length === 0) {
-      console.log("🔄 Initializing Firebase Admin SDK...");
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
-      console.log("✅ Firebase Admin initialized successfully");
-      firebaseInitialized = true;
-    } else {
-      console.log("✅ Firebase Admin already initialized (serverless reuse)");
-      console.log("   Number of apps:", admin.apps.length);
-      firebaseInitialized = true;
-    }
-    
-    // Always initialize Firestore (even if Firebase was already initialized)
-    console.log("🔄 Initializing Firestore database...");
-    try {
-      db = admin.firestore();
-      console.log("✅ Firestore database initialized");
-      console.log("   DB type:", typeof db);
-      console.log("   DB available:", !!db);
-    } catch (firestoreError) {
-      console.error("❌ Error getting Firestore instance:", firestoreError.message);
-      throw firestoreError;
-    }
-    
-    // Test connection (only in development)
-    if (process.env.NODE_ENV !== "production") {
-      db.listCollections()
-        .then(collections => {
-          console.log("✅ Firestore connected! Existing collections:");
-          if (collections.length === 0) console.log("   (no collections yet)");
-          else collections.forEach(c => console.log(" -", c.id));
-        })
-        .catch(err => {
-          console.error("❌ Firestore connection test failed:", err.message);
-          console.error("   This might be a permissions issue. Check your Firebase security rules.");
-        });
-    }
-  } catch (error) {
-    console.error("❌ Error initializing Firebase/Firestore:", error.message);
-    console.error("Error name:", error.name);
-    console.error("Error stack:", error.stack);
-    db = null;
-    firebaseInitialized = false;
-  }
-} else {
-  console.error("❌ Firebase service account not available. Database will not work.");
-  console.error("Please set FIREBASE_SERVICE_ACCOUNT_KEY environment variable or provide serviceAccountKey.json");
-  console.error("   Current working directory:", __dirname);
-  console.error("   NODE_ENV:", process.env.NODE_ENV || "development");
-}
+// Initialize Firebase on module load
+initializeFirebase();
 
 // Express setup
 app.set("view engine", "ejs");
@@ -134,11 +162,24 @@ app.get("/registration", (req, res) => {
   res.render("registration", { title: "Register - Prajyuktam Coding Competition", error: null });
 });
 
+// Helper function to ensure database is initialized
+function ensureDb() {
+  if (!db) {
+    console.log("⚠️ Database not initialized, attempting to initialize...");
+    const initializedDb = initializeFirebase();
+    if (initializedDb) {
+      db = initializedDb;
+      console.log("✅ Database initialized successfully on demand");
+    } else {
+      throw new Error("Database not initialized. Please check Firebase configuration.");
+    }
+  }
+  return db;
+}
+
 // Helper: generate unique 4-digit code
 async function generateUniqueCode() {
-  if (!db) {
-    throw new Error("Database not initialized");
-  }
+  const dbInstance = ensureDb();
   
   const min = 1000;
   const max = 9999;
@@ -153,7 +194,7 @@ async function generateUniqueCode() {
       break;
     }
     code = Math.floor(Math.random() * (max - min + 1)) + min;
-    const snapshot = await db.collection("registrations").where("code", "==", String(code)).limit(1).get();
+    const snapshot = await dbInstance.collection("registrations").where("code", "==", String(code)).limit(1).get();
     exists = !snapshot.empty;
   }
   return String(code);
@@ -229,41 +270,29 @@ app.post("/register", async (req, res) => {
   }
 
   try {
-    if (!db) {
-      const errorMsg = "Database not initialized. Please check Firebase configuration.";
-      console.error("❌", errorMsg);
+    // Ensure Firebase is initialized (important for serverless environments)
+    let dbInstance;
+    try {
+      dbInstance = ensureDb();
+    } catch (dbError) {
+      console.error("❌ Database initialization failed:", dbError.message);
       console.error("   Firebase initialized:", firebaseInitialized);
       console.error("   Service account available:", !!serviceAccount);
-      console.error("   DB value:", db);
       console.error("   Admin apps count:", admin.apps.length);
+      console.error("   FIREBASE_SERVICE_ACCOUNT_KEY exists:", !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      console.error("   NODE_ENV:", process.env.NODE_ENV);
       
-      // Try to reinitialize if service account exists
-      if (serviceAccount && admin.apps.length === 0) {
-        console.log("🔄 Attempting to reinitialize Firebase...");
-        try {
-          admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-          });
-          db = admin.firestore();
-          console.log("✅ Firebase reinitialized successfully");
-        } catch (reinitError) {
-          console.error("❌ Reinitialization failed:", reinitError.message);
-        }
-      }
-      
-      if (!db) {
-        return res.status(500).render("registration", {
-          title: "Register - Prajyuktam Coding Competition",
-          error: errorMsg + " Please check server logs for details."
-        });
-      }
+      return res.status(500).render("registration", {
+        title: "Register - Prajyuktam Coding Competition",
+        error: dbError.message + " Please check server logs for details. Make sure FIREBASE_SERVICE_ACCOUNT_KEY is set in Vercel environment variables."
+      });
     }
     
     // Generate a unique code (string)
     const code = await generateUniqueCode();
 
     // Save as one registration document
-    const docRef = await db.collection("registrations").add({
+    const docRef = await dbInstance.collection("registrations").add({
       type: competition_type,
       participants,
       code,
@@ -313,9 +342,7 @@ app.post("/auth", async (req, res) => {
   const { uniqueCode, email } = req.body;
 
   try {
-    if (!db) {
-      throw new Error("Database not initialized");
-    }
+    const dbInstance = ensureDb();
     
     if (!uniqueCode || !email) {
       return res.render("auth", { error: "Please enter both code and email." });
@@ -325,7 +352,7 @@ app.post("/auth", async (req, res) => {
     const enteredEmail = email.trim().toLowerCase();
 
     // Fetch team with that code
-    const snapshot = await db.collection("registrations")
+    const snapshot = await dbInstance.collection("registrations")
       .where("code", "==", code)
       .limit(1)
       .get();
@@ -363,9 +390,7 @@ app.post("/auth", async (req, res) => {
 // Landing page - show team info from the code
 app.get("/landing", async (req, res) => {
   try {
-    if (!db) {
-      throw new Error("Database not initialized");
-    }
+    const dbInstance = ensureDb();
     
     // Step 1 — check if user is authenticated via session
     if (!req.session || !req.session.authenticated) {
@@ -375,7 +400,7 @@ app.get("/landing", async (req, res) => {
     const { teamCode, email } = req.session;
 
     // Step 2 — verify that team still exists
-    const snapshot = await db.collection("registrations")
+    const snapshot = await dbInstance.collection("registrations")
       .where("code", "==", teamCode)
       .limit(1)
       .get();
@@ -436,11 +461,9 @@ app.get("/contest", (req, res) => {
 // Admin Dashboard — Fetch all registered teams
 app.get("/admin", async (req, res) => {
   try {
-    if (!db) {
-      throw new Error("Database not initialized");
-    }
+    const dbInstance = ensureDb();
     
-    const snapshot = await db.collection("registrations")
+    const snapshot = await dbInstance.collection("registrations")
       .orderBy("createdAt", "desc")
       .get();
 
@@ -459,9 +482,7 @@ app.get("/admin", async (req, res) => {
 // Delete a team registration
 app.post("/admin/delete", async (req, res) => {
   try {
-    if (!db) {
-      throw new Error("Database not initialized");
-    }
+    const dbInstance = ensureDb();
     
     const { id } = req.body;
     if (!id) {
@@ -469,7 +490,7 @@ app.post("/admin/delete", async (req, res) => {
       return res.status(400).send("Missing registration ID");
     }
 
-    const docRef = db.collection("registrations").doc(id);
+    const docRef = dbInstance.collection("registrations").doc(id);
     const docSnap = await docRef.get();
 
     if (!docSnap.exists) {
@@ -501,10 +522,18 @@ app.get("/health", (req, res) => {
 });
 
 // Export for Vercel serverless function
+// Vercel expects a handler function, not the app directly
 module.exports = app;
+
+// Also export as handler for Vercel compatibility
+module.exports.handler = app;
 
 // Start server locally (only if not in Vercel environment)
 if (require.main === module) {
   const PORT = process.env.PORT || 8080;
-  app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
+  app.listen(PORT, () => {
+    console.log(`✅ Server running on http://localhost:${PORT}`);
+    console.log(`✅ Firebase initialized: ${firebaseInitialized}`);
+    console.log(`✅ Database available: ${!!db}`);
+  });
 }
