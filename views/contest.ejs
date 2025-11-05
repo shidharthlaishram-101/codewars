@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contest Page - CodeComp</title>
+    <link rel="stylesheet" href="/css/contest.css">
+</head>
+<body>
+
+    <header>
+        <nav class="container">
+            <!-- <a href="/" class="logo">CodeWars</a> -->
+            <div class="contest-timer">Time Left: <strong>01:28:45</strong></div>
+            <!-- <ul>
+                <li><a href="#" class="btn btn-primary">Submit</a></li>
+            </ul> -->
+        </nav>
+    </header>
+
+    <div class="contest-container">
+        
+        <aside class="problem-sidebar">
+            <div class="problem-list">
+                <h3>Problems</h3>
+                <ul>
+                    <li class="active"><a href="#">A. Two Sum</a></li>
+                    <li><a href="#">B. Valid Parentheses</a></li>
+                    <li><a href="#">C. Merge K Sorted Lists</a></li>
+                    <li><a href="#">D. The Trapped Rain Water</a></li>
+                </ul>
+            </div>
+
+            <div class="problem-statement">
+                <h2>A. Two Sum</h2>
+                <span class="tag">Easy</span>
+                <p>Given an array of integers <code>nums</code> and an integer <code>target</code>, return indices of the two numbers such that they add up to <code>target</code>.</p>
+                <p>You may assume that each input would have <strong>exactly one solution</strong>, and you may not use the same element twice. You can return the answer in any order.</p>
+
+                <h3>Example 1:</h3>
+                <pre>
+<strong>Input:</strong> nums = [2,7,11,15], target = 9
+<strong>Output:</strong> [0,1]
+<strong>Explanation:</strong> Because nums[0] + nums[1] == 9, we return [0, 1].
+                </pre>
+
+                <h3>Example 2:</h3>
+                <pre>
+<strong>Input:</strong> nums = [3,2,4], target = 6
+<strong>Output:</strong> [1,2]
+                </pre>
+
+                <h3>Constraints:</h3>
+                <ul>
+                    <li><code>2 <= nums.length <= 10^4</code></li>
+                    <li><code>-10^9 <= nums[i] <= 10^9</code></li>
+                    <li><code>-10^9 <= target <= 10^9</code></li>
+                    <li>Only one valid answer exists.</li>
+                </ul>
+            </div>
+        </aside>
+
+        <main class="code-sidebar">
+            <div class="code-editor-container">
+                <div class="editor-header">
+                    <label for="language">Language:</label>
+                    <select id="language" name="language">
+                        <option value="python">Python 3</option>
+                        <option value="javascript">JavaScript (Node.js)</option>
+                        <option value="cpp">C++ 17 (GCC)</option>
+                        <option value="java">Java 11</option>
+                    </select>
+                </div>
+                
+                <textarea id="code-editor" spellcheck="false">
+# Write your code here
+def solve():
+    pass
+                </textarea>
+                
+                <div class="editor-footer">
+                    <button class="btn btn-secondary">Run Code</button>
+                    <button class="btn btn-primary">Submit Solution</button>
+                </div>
+            </div>
+
+            <div class="submission-status">
+                <h3>Submissions</h3>
+
+                <div class="submission-item">
+                    <span class="status-accepted">Accepted</span>
+                    <span class="problem-title">A. Two Sum</span>
+                    <span class="time">3 mins ago</span>
+                </div>
+
+                <div class="submission-item">
+                    <span class="status-wrong">Wrong Answer</span>
+                    <span class="problem-title">A. Two Sum</span>
+                    <span class="time">5 mins ago</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>

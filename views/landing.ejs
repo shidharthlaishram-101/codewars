@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Landing Page - Competition is displayed</title>
+    <link rel="stylesheet" href="/css/landing.css">
+</head>
+<body>
+
+    <header>
+        <nav class="container">
+            <a href="/" class="logo">CodeWars</a>
+            <% if (authorizedEmail) { %>
+                <div class="user-info">
+                    <span class="email"><%= authorizedEmail %></span>
+                    <a href="/logout" class="logout-btn">Logout</a>
+                </div>
+            <% } %>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section class="hero">
+            <h1>Welcome to CodeWars</h1>
+            <h2>Team Code: <%= code %></h2>
+            <!-- <p>Hone your skills. Compete with the best. Join our next coding challenge!</p> -->
+        </section>
+
+        <section class="contest-list">
+            <h2>Easy</h2>
+            
+            <div class="contest-card">
+                <div class="card-content">
+                    <h3>Weekly Challenge #10</h3>
+                    <p>A set of 5 algorithm problems. Ready to test your logic?</p>
+                    <span class="tag">Easy</span>
+                    <span class="tag">Algorithms</span>
+                </div>
+                <div class="card-action">
+                    <!-- <span>Starts in: 02:30:15</span> -->
+                    <a href="/contest" class="btn btn-secondary">Enter Contest</a>
+                </div>
+            </div>
+
+            <h2>Medium</h2>
+            <div class="contest-card">
+                <div class="card-content">
+                    <h3>Data Structures Showdown</h3>
+                    <p>Focus on trees, graphs, and hash maps. 3 hours, 4 problems.</p>
+                    <span class="tag">Medium</span>
+                    <span class="tag">Data Structures</span>
+                </div>
+                <div class="card-action">
+                    <!-- <span>Ends in: 2 days</span> -->
+                    <a href="/contest" class="btn btn-secondary">Enter Contest</a>
+                </div>
+            </div>
+            
+            <h2>Hard</h2>
+            <div class="contest-card">
+                <div class="card-content">
+                    <h3>The Marathon (24h)</h3>
+                    <p>A 24-hour long challenge. Can you solve all 10 problems?</p>
+                    <span class="tag">Hard</span>
+                </div>
+                <div class="card-action">
+                    <!-- <span></span> -->
+                    <a href="/contest" class="btn btn-secondary">Enter Contest</a>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 CodeWars. All rights reserved.</p>
+    </footer>
+
+</body>
+</html>

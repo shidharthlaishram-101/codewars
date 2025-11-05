@@ -1,0 +1,393 @@
+/* === CSS Variables (Theme) === */
+:root {
+    --primary-color: #007bff;
+    --secondary-color: #495057;
+    --bg-color: #1a1a1a;
+    --surface-color: #2c2c2c;
+    --text-color: #f4f4f4;
+    --text-muted: #aaa;
+    --border-color: #444;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+}
+
+/* === Global Styles === */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+ul {
+    list-style: none;
+}
+
+footer {
+    text-align: center;
+    padding: 2rem 0;
+    margin-top: 2rem;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+/* === Header & Navigation === */
+header {
+    background-color: var(--surface-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+header nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+header nav ul {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+header nav ul a {
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 0.5rem;
+    transition: color 0.3s ease;
+}
+
+header nav ul a:hover,
+header nav ul a.active {
+    color: var(--text-color);
+}
+
+/* === Buttons === */
+.btn {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+.btn-primary:hover {
+    filter: brightness(1.2);
+}
+.btn-primary.disabled {
+    background-color: var(--secondary-color);
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+    color: #fff;
+}
+.btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+/* === Homepage: Hero === */
+.hero {
+    text-align: center;
+    padding: 4rem 1rem;
+}
+.hero h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+.hero p {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+}
+
+/* === Homepage: Contest List === */
+.contest-list h2 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.contest-card {
+    background-color: var(--surface-color);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.contest-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.contest-card.upcoming {
+    opacity: 0.7;
+}
+
+.card-content h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+.card-content p {
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+.card-action {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+.card-action span {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.tag {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin-right: 0.5rem;
+}
+
+/* === Contest Page === */
+.contest-timer {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+.contest-container {
+    display: flex;
+    height: calc(100vh - 65px); /* Full height minus header */
+}
+
+/* Problem Sidebar (Left) */
+.problem-sidebar {
+    flex: 0 0 40%;
+    max-width: 40%;
+    overflow-y: auto;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.problem-list {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--surface-color);
+}
+.problem-list h3 {
+    margin-bottom: 1rem;
+}
+.problem-list ul li a {
+    display: block;
+    padding: 0.75rem 1rem;
+    border-radius: 5px;
+    color: var(--text-muted);
+}
+.problem-list ul li.active a,
+.problem-list ul li a:hover {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.problem-statement {
+    padding: 1.5rem;
+}
+.problem-statement h2 {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+}
+.problem-statement h3 {
+    font-size: 1.2rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+.problem-statement p {
+    margin-bottom: 1rem;
+}
+.problem-statement ul {
+    list-style: disc;
+    padding-left: 20px;
+}
+.problem-statement pre {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    padding: 1rem;
+    border-radius: 5px;
+    font-family: "Courier New", Courier, monospace;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Code Sidebar (Right) */
+.code-sidebar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.code-editor-container {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Takes up most of the space */
+}
+
+.editor-header {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background-color: var(--surface-color);
+    border-bottom: 1px solid var(--border-color);
+}
+.editor-header select {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem;
+    border-radius: 5px;
+}
+
+#code-editor {
+    flex-grow: 1;
+    background-color: #1e1e1e; /* A common editor dark color */
+    color: #d4d4d4;
+    font-family: "Fira Code", "Courier New", monospace;
+    font-size: 1rem;
+    padding: 1rem;
+    border: none;
+    outline: none;
+    resize: none;
+    line-height: 1.5;
+}
+
+.editor-footer {
+    padding: 1rem;
+    background-color: var(--surface-color);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+/* Submission Status */
+.submission-status {
+    flex-basis: 200px; /* Fixed height for status */
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-top: 1px solid var(--border-color);
+    padding: 1rem;
+}
+.submission-status h3 {
+    margin-bottom: 1rem;
+}
+.submission-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.logout-btn {
+            background-color: #dc3545;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: background-color 0.2s ease;
+        }
+
+        .logout-btn:hover {
+            background-color: #b02a37;
+        }
+
+        
+.status-accepted { color: var(--success-color); font-weight: bold; }
+.status-wrong { color: var(--danger-color); font-weight: bold; }
+.problem-title { color: var(--text-color); }
+.time { color: var(--text-muted); }
+
+/* === Responsive Design === */
+@media (max-width: 900px) {
+    .contest-container {
+        flex-direction: column;
+        height: auto;
+    }
+    .problem-sidebar, .code-sidebar {
+        flex: 1 1 100%;
+        max-width: 100%;
+        height: auto;
+    }
+    .problem-sidebar {
+        height: auto; /* Allow it to grow */
+        border-right: none;
+    }
+    .code-sidebar {
+        height: 80vh; /* Give editor a fixed viewport height on mobile */
+    }
+}
+
+@media (max-width: 768px) {
+    .contest-card {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1rem;
+    }
+    .card-action {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1rem;
+    }
+    header nav ul {
+        gap: 0.5rem;
+    }
+    header nav ul a {
+        padding: 0.25rem;
+    }
+}

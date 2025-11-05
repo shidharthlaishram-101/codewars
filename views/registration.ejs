@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register - Prajyuktam Coding Competition</title>
+  <link rel="stylesheet" href="/css/registration.css" />
+  <style>
+    /* Optional: smooth toggle animation */
+    #participant2 {
+      transition: all 0.3s ease;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav class="container">
+      <a href="/" class="logo">CodeWars</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="form-container">
+      <h2>Register for Competition</h2>
+
+      <form action="/register" method="POST" id="registration-form">
+
+        <!-- Competition Type Selection -->
+        <fieldset>
+          <div class="form-group">
+            <label for="competition_type">Select Competition Type</label>
+            <select id="competition_type" name="competition_type" required>
+              <option value="" disabled selected>Select type</option>
+              <option value="solo">Solo</option>
+              <option value="duet">Duet</option>
+            </select>
+          </div>
+        </fieldset>
+
+        <!-- Participant 1 -->
+        <fieldset id="participant1">
+          <!-- <legend>Participant Details</legend> -->
+
+          <div class="form-group">
+            <label for="p1_name">Full Name</label>
+            <input type="text" id="p1_name" name="p1_name" required placeholder="Full Name">
+          </div>
+
+          <div class="form-group">
+            <label for="p1_email">Email Address</label>
+            <input type="email" id="p1_email" name="p1_email" required placeholder="you@example.com">
+          </div>
+
+          <div class="form-group">
+            <label for="p1_phone">Phone Number</label>
+            <input type="tel" id="p1_phone" name="p1_phone" required placeholder="10-digit mobile number"
+                   pattern="\d{10}" minlength="10" maxlength="10" title="Enter 10 digit mobile number">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="p1_branch">Branch</label>
+              <select id="p1_branch" name="p1_branch" required>
+                <option value="" disabled selected>Select branch</option>
+                <option value="CSE">Computer Science & Engineering</option>
+                <option value="ECE">Electronics & Comm.</option>
+                <option value="EE">Electrical Engineering</option>
+                <option value="ME">Mechanical Engineering</option>
+                <option value="CE">Civil Engineering</option>
+                <option value="CA">Computer Applications</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="p1_semester">Semester</label>
+              <select id="p1_semester" name="p1_semester" required>
+                <option value="" disabled selected>Select semester</option>
+                <option value="1">1st</option>
+                <option value="2">2nd</option>
+                <option value="3">3rd</option>
+                <option value="4">4th</option>
+                <option value="5">5th</option>
+                <option value="6">6th</option>
+                <option value="7">7th</option>
+                <option value="8">8th</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Participant 2 (Visible only if duet) -->
+        <fieldset id="participant2" class="hidden">
+          <!-- <legend>Second Participant</legend> -->
+
+          <div class="form-group">
+            <label for="p2_name">Full Name</label>
+            <input type="text" id="p2_name" name="p2_name" placeholder="Full Name">
+          </div>
+
+          <div class="form-group">
+            <label for="p2_email">Email Address</label>
+            <input type="email" id="p2_email" name="p2_email" placeholder="you@example.com">
+          </div>
+
+          <div class="form-group">
+            <label for="p2_phone">Phone Number</label>
+            <input type="tel" id="p2_phone" name="p2_phone" placeholder="10-digit mobile number"
+                   pattern="\d{10}" minlength="10" maxlength="10" title="Enter 10 digit mobile number">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="p2_branch">Branch</label>
+              <select id="p2_branch" name="p2_branch">
+                <option value="" disabled selected>Select branch</option>
+                <option value="CSE">Computer Science & Engineering</option>
+                <option value="ECE">Electronics & Comm.</option>
+                <option value="EE">Electrical Engineering</option>
+                <option value="ME">Mechanical Engineering</option>
+                <option value="CE">Civil Engineering</option>
+                <option value="CA">Computer Applications</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="p2_semester">Semester</label>
+              <select id="p2_semester" name="p2_semester">
+                <option value="" disabled selected>Select semester</option>
+                <option value="1">1st</option>
+                <option value="3">3rd</option>
+                <option value="5">5th</option>
+                <option value="7">7th</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <% if (typeof error !== 'undefined' && error) { %>
+          <div class="form-message-error"><%= error %></div>
+        <% } %>
+
+        <div class="form-group">
+          <button type="submit" class="btn btn-primary">Register</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 CodeWars. All rights reserved.</p>
+  </footer>
+
+  <script>
+    const competitionType = document.getElementById('competition_type');
+    const participant2 = document.getElementById('participant2');
+
+    competitionType.addEventListener('change', function() {
+      if (this.value === 'duet') {
+        participant2.classList.remove('hidden');
+        // Make 2nd participant fields required
+        participant2.querySelectorAll('input, select').forEach(el => el.required = true);
+      } else {
+        participant2.classList.add('hidden');
+        // Remove 'required' from 2nd participant fields
+        participant2.querySelectorAll('input, select').forEach(el => el.required = false);
+      }
+    });
+  </script>
+
+  <script type="module" src="/js/firebase.js"></script>
+  <script type="module" src="/js/register.js"></script>
+</body>
+</html>

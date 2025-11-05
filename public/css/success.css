@@ -1,0 +1,167 @@
+/* === CSS Variables (Theme) === */
+:root {
+    --primary-color: #007bff;
+    --secondary-color: #495057;
+    --bg-color: #1a1a1a;
+    --surface-color: #2c2c2c;
+    --text-color: #f4f4f4;
+    --text-muted: #aaa;
+    --border-color: #444;
+    --success-color: #28a745; /* Green for success */
+    --danger-color: #dc3545;
+}
+
+/* === Global Styles === */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    width: 100%;
+}
+
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+/* === Header === */
+header {
+    background-color: var(--surface-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 0;
+}
+
+header nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+/* === Main Content (for centering) === */
+main.container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* === Success Card Styles === */
+.success-card {
+    width: 100%;
+    max-width: 550px; /* A bit wider for the message */
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-top: 5px solid var(--success-color); /* Green top border */
+    border-radius: 8px;
+    padding: 2.5rem;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    text-align: center;
+}
+
+.checkmark {
+    font-size: 4rem;
+    color: var(--success-color);
+    line-height: 1;
+    margin-bottom: 1.5rem;
+}
+
+.success-card h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+}
+
+.success-card p {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    line-height: 1.7;
+}
+
+.success-card p:last-of-type {
+    margin-bottom: 2.5rem;
+}
+
+.home-btn {
+    display: inline-block;
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    text-align: center;
+    background-color: var(--primary-color);
+    color: #fff;
+}
+
+.home-btn:hover {
+    filter: brightness(1.2);
+}
+
+.code-box {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px auto;
+  width: fit-content;
+  text-align: center;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.3);
+}
+
+.code-box h1 {
+  font-size: 3rem;
+  color: #ffffff;
+  margin-top: 10px;
+  letter-spacing: 4px;
+}
+
+
+/* === Footer === */
+footer {
+    text-align: center;
+    padding: 2rem 0;
+    margin-top: auto; /* Pushes footer down */
+    border-top: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+/* === Responsive Design === */
+@media (max-width: 768px) {
+    .success-card {
+        padding: 2rem 1.5rem;
+    }
+    .success-card h2 {
+        font-size: 1.8rem;
+    }
+    .checkmark {
+        color: var(--success-color);
+    }
+}
