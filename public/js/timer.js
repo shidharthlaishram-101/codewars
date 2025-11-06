@@ -1,7 +1,7 @@
 // --- Countdown Timer Logic ---
 
 // 1. Set target date and time
-const targetDate = new Date("November 12, 2025 23:59:00").getTime();
+const targetDate = new Date("November 1, 2025 23:59:00").getTime();
 
 // 2. Get the elements
 const timerElement = document.getElementById("countdown-timer");
@@ -20,7 +20,7 @@ const timerInterval = setInterval(function () {
     if (distance < 0) {
         clearInterval(timerInterval);
 
-        timerElement.innerHTML = "CodeWars has started!";
+        timerElement.innerHTML = "Event has started!";
         timerElement.className = "timer-expired";
 
         // Show the Enter button
