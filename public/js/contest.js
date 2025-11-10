@@ -80,6 +80,7 @@ async function loadProblems() {
     // Render problem list and display first problem
     renderProblemList();
     displayProblem(0);
+    
     return true;
   } catch (error) {
     console.error("❌ Error fetching problems:", error);

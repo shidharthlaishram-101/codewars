@@ -1,7 +1,10 @@
-// contest.js
+// contest.js - Continuous timer across all difficulty levels
 
-// Set the countdown time (in seconds)
-let totalTime = 3 * 60 * 60; // 3 hours in seconds
+// Timer configuration
+const CONTEST_DURATION = 3 * 60 * 60; // 3 hours in seconds
+let timerInterval = null;
+let remainingTime = CONTEST_DURATION;
+let contestStartTime = null;
 
 // Get the timer element
 const timerElement = document.querySelector('.contest-timer strong');
@@ -27,25 +30,73 @@ function showContestEndedModal() {
 // Make function available globally
 window.showContestEndedModal = showContestEndedModal;
 
-// Update timer every second
-function startTimer() {
-    const timerInterval = setInterval(() => {
-        totalTime--;
-
-        if (totalTime >= 0) {
-            if (timerElement) {
-                timerElement.textContent = formatTime(totalTime);
-            }
-        } else {
-            clearInterval(timerInterval);
-            if (timerElement) {
-                timerElement.textContent = "Time's up!";
-            }
-            // Show modal instead of alert
-            showContestEndedModal();
-        }
-    }, 1000);
+// Initialize continuous timer - starts once and keeps running across all difficulty levels
+function initializeTimer() {
+    // Check if contest has already started (same session)
+    let startTime = sessionStorage.getItem('contestStartTime');
+    
+    if (!startTime) {
+        // First time accessing contest - start the timer
+        startTime = Date.now();
+        sessionStorage.setItem('contestStartTime', startTime);
+        remainingTime = CONTEST_DURATION;
+        console.log(`⏱️ Contest started. 3 hours timer begins!`);
+    } else {
+        // Contest already started earlier - calculate remaining time
+        const elapsedTime = Math.floor((Date.now() - parseInt(startTime)) / 1000);
+        remainingTime = Math.max(0, CONTEST_DURATION - elapsedTime);
+        console.log(`⏱️ Contest resumed. Time remaining: ${formatTime(remainingTime)}`);
+    }
+    
+    contestStartTime = parseInt(startTime);
 }
 
+// Update timer display and check for expiration
+function updateTimer() {
+    remainingTime--;
+
+    if (remainingTime > 0) {
+        if (timerElement) {
+            timerElement.textContent = formatTime(remainingTime);
+        }
+    } else if (remainingTime === 0) {
+        if (timerElement) {
+            timerElement.textContent = "Time's up!";
+        }
+        stopTimer();
+        showContestEndedModal();
+    }
+}
+
+// Start the countdown
+function startTimer() {
+    // Clear any existing interval
+    stopTimer();
+    
+    // Initialize timer (only starts once, keeps running after)
+    initializeTimer();
+    
+    // Display initial time
+    if (timerElement) {
+        timerElement.textContent = formatTime(remainingTime);
+    }
+    
+    // Start countdown
+    timerInterval = setInterval(updateTimer, 1000);
+}
+
+// Stop the timer
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+// Make functions globally available
+window.startTimer = startTimer;
+window.stopTimer = stopTimer;
+window.initializeTimer = initializeTimer;
+
 // Start the countdown when page loads
-window.onload = startTimer;
+window.addEventListener('load', startTimer);
