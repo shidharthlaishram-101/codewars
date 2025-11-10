@@ -304,6 +304,48 @@ app.get("/logout", (req, res) => {
 });
 
 
+// Fetch problems by difficulty level from Firebase
+app.get("/api/problems", async (req, res) => {
+  try {
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { difficulty } = req.query;
+
+    if (!difficulty || !["easy", "medium", "hard"].includes(difficulty)) {
+      return res.status(400).json({ error: "Invalid difficulty level. Must be easy, medium, or hard." });
+    }
+
+    // Fetch problems from Firestore and filter/sort in memory to avoid composite index requirement
+    const snapshot = await db.collection("problems")
+      .where("difficulty", "==", difficulty)
+      .get();
+
+    if (snapshot.empty) {
+      console.log(`⚠️ No problems found for difficulty: ${difficulty}`);
+      return res.json({ problems: [] });
+    }
+
+    const problems = [];
+    snapshot.forEach(doc => {
+      problems.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+
+    // Sort by order field
+    problems.sort((a, b) => (a.order || 999) - (b.order || 999));
+
+    console.log(`✅ Fetched ${problems.length} problems for difficulty: ${difficulty}`);
+    res.json({ problems });
+  } catch (error) {
+    console.error("❌ Error fetching problems:", error);
+    res.status(500).json({ error: "Failed to fetch problems" });
+  }
+});
+
 app.get("/contest", (req, res) => {
   // Check if user is authenticated
   if (!req.session || !req.session.authenticated) {
@@ -318,13 +360,26 @@ app.get("/contest", (req, res) => {
     return res.redirect("/auth");
   }
 
+  // Get difficulty level from query params (default to easy)
+  const difficulty = req.query.difficulty || "easy";
+  
+  if (!["easy", "medium", "hard"].includes(difficulty)) {
+    return res.status(400).render("error", { message: "Invalid difficulty level" });
+  }
+
   // Store contest start time if not already stored
   if (!req.session.contestStartTime) {
     req.session.contestStartTime = Date.now();
     console.log(`⏱️ Contest started for ${email} (Team: ${teamCode}) at ${new Date(req.session.contestStartTime).toISOString()}`);
   }
 
-  res.render("contest", { title: "CodeWars Contest" });
+  // Store difficulty in session
+  req.session.contestDifficulty = difficulty;
+
+  res.render("contest", { 
+    title: "CodeWars Contest",
+    difficulty: difficulty
+  });
 });
 
 // End contest session handler

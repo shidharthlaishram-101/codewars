@@ -10,7 +10,11 @@
  // Store last execution result so submit can send output without re-executing
  let lastExecutionResult = null;
  let nextQuestionBtn;
- let prevQuestionBtn;// Language-specific code templates
+ let prevQuestionBtn;
+ // Store problems data
+ let problemsData = [];
+ let currentProblemIndex = 0;
+ // Language-specific code templates
 const codeTemplates = {
   python: `# Write your code here
 def solve():
@@ -49,8 +53,125 @@ function initializeCodeEditor() {
 
 // Language change listener is set up in DOMContentLoaded handler
 
+// Fetch problems from Firebase API
+async function loadProblems() {
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const difficulty = urlParams.get('difficulty') || 'easy';
+    
+    const response = await fetch(`/api/problems?difficulty=${difficulty}`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      console.error("❌ Error loading problems:", data.error);
+      showProblemError("Failed to load problems. Please refresh the page.");
+      return false;
+    }
+    
+    if (!data.problems || data.problems.length === 0) {
+      console.warn("⚠️ No problems found for difficulty:", difficulty);
+      showProblemError("No problems found for this difficulty level.");
+      return false;
+    }
+    
+    problemsData = data.problems;
+    console.log(`✅ Loaded ${problemsData.length} problems for difficulty: ${difficulty}`);
+    
+    // Render problem list and display first problem
+    renderProblemList();
+    displayProblem(0);
+    return true;
+  } catch (error) {
+    console.error("❌ Error fetching problems:", error);
+    showProblemError("Network error loading problems.");
+    return false;
+  }
+}
+
+// Render problems in the sidebar list
+function renderProblemList() {
+  const problemListEl = document.getElementById('problem-list');
+  if (!problemListEl) return;
+  
+  problemListEl.innerHTML = '';
+  
+  problemsData.forEach((problem, index) => {
+    const li = document.createElement('li');
+    if (index === 0) li.classList.add('active');
+    
+    const a = document.createElement('a');
+    a.href = '#';
+    a.textContent = problem.title || `Problem ${index + 1}`;
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      goToQuestion(index);
+    });
+    
+    li.appendChild(a);
+    problemListEl.appendChild(li);
+  });
+}
+
+// Display problem statement
+function displayProblem(index) {
+  if (index < 0 || index >= problemsData.length) return;
+  
+  currentProblemIndex = index;
+  const problem = problemsData[index];
+  const problemStatementEl = document.getElementById('problem-statement');
+  
+  if (!problemStatementEl) return;
+  
+  // Build HTML for problem statement
+  let html = `<h2>${problem.title || `Problem ${index + 1}`}</h2>`;
+  
+  if (problem.difficulty) {
+    html += `<span class="tag">${problem.difficulty}</span>`;
+  }
+  
+  if (problem.description) {
+    html += `<p>${problem.description}</p>`;
+  }
+  
+  if (problem.examples && Array.isArray(problem.examples)) {
+    problem.examples.forEach((example, i) => {
+      html += `<h3>Example ${i + 1}:</h3>`;
+      html += `<pre><strong>Input:</strong> ${escapeHtml(example.input || '')}\n<strong>Output:</strong> ${escapeHtml(example.output || '')}</pre>`;
+      if (example.explanation) {
+        html += `<p><strong>Explanation:</strong> ${example.explanation}</p>`;
+      }
+    });
+  }
+  
+  if (problem.constraints && Array.isArray(problem.constraints)) {
+    html += `<h3>Constraints:</h3><ul>`;
+    problem.constraints.forEach(constraint => {
+      html += `<li><code>${constraint}</code></li>`;
+    });
+    html += `</ul>`;
+  }
+  
+  problemStatementEl.innerHTML = html;
+  
+  // Update navigation buttons
+  updateNavigationButtons(index);
+}
+
+// Show error in problem area
+function showProblemError(message) {
+  const problemListEl = document.getElementById('problem-list');
+  if (problemListEl) {
+    problemListEl.innerHTML = `<li><a href="#">Error: ${message}</a></li>`;
+  }
+  
+  const problemStatementEl = document.getElementById('problem-statement');
+  if (problemStatementEl) {
+    problemStatementEl.innerHTML = `<h2>Error</h2><p>${message}</p>`;
+  }
+}
+
 // Initialize on page load
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", async function() {
   // Get DOM elements
   codeEditor = document.getElementById("code-editor");
   languageSelect = document.getElementById("language");
@@ -93,18 +214,22 @@ document.addEventListener("DOMContentLoaded", function() {
   
   if (nextQuestionBtn) {
     nextQuestionBtn.addEventListener('click', function() {
-      goToQuestion('next');
+      if (currentProblemIndex < problemsData.length - 1) {
+        displayProblem(currentProblemIndex + 1);
+      }
     });
   }
   
   if (prevQuestionBtn) {
     prevQuestionBtn.addEventListener('click', function() {
-      goToQuestion('prev');
+      if (currentProblemIndex > 0) {
+        displayProblem(currentProblemIndex - 1);
+      }
     });
   }
   
-  // Initialize prev button state
-  updateNavigationButtons(0);
+  // Load problems from Firebase
+  await loadProblems();
   
   if (codeEditor) {
     // Keyboard shortcut: Ctrl+Enter to run code
@@ -192,61 +317,15 @@ function displayOutput(result) {
   }
 }
 
-// Front-end: navigate between problems in the sidebar and update the statement header/placeholder
-function goToQuestion(direction) {
-  const listItems = document.querySelectorAll('.problem-list ul li');
-  if (!listItems || listItems.length === 0) return;
-
-  const items = Array.from(listItems);
-  let activeIndex = items.findIndex(li => li.classList.contains('active'));
-  if (activeIndex === -1) activeIndex = 0;
-  
-  let nextIndex;
-  if (direction === 'next') {
-    nextIndex = (activeIndex + 1) % items.length;
-  } else {
-    nextIndex = activeIndex - 1;
-    if (nextIndex < 0) nextIndex = 0; // Stay on first question if trying to go previous
-  }
-
-  // Update active class
-  items[activeIndex].classList.remove('active');
-  items[nextIndex].classList.add('active');
-
-  // Update problem statement header to match link text, and set placeholder content
-  const anchor = items[nextIndex].querySelector('a');
-  const titleText = anchor ? anchor.textContent.trim() : `Problem ${nextIndex + 1}`;
-
-  const problemTitleEl = document.querySelector('.problem-statement h2');
-  if (problemTitleEl) problemTitleEl.textContent = titleText;
-
-  const tagEl = document.querySelector('.problem-statement .tag');
-  if (tagEl) tagEl.style.display = 'none';
-
-  // Replace statement content with a front-end placeholder (server should provide full content)
-  const stmtEl = document.querySelector('.problem-statement');
-  if (stmtEl) {
-    // Keep the heading, clear the rest and show a small placeholder message
-    const heading = stmtEl.querySelector('h2')?.outerHTML || `<h2>${titleText}</h2>`;
-    stmtEl.innerHTML = heading + `<p style="margin-top:0.5rem;">Problem statement not loaded (front-end navigation only). Use the server to fetch full problem content.</p>`;
-  }
-
-  // Update navigation button states
-  updateNavigationButtons(nextIndex);
-}
-
 // Update Previous/Next button states based on current question index
 function updateNavigationButtons(currentIndex) {
   if (!prevQuestionBtn || !nextQuestionBtn) return;
 
-  const listItems = document.querySelectorAll('.problem-list ul li');
-  const totalQuestions = listItems.length;
-
   // Previous button: disabled on first question
   prevQuestionBtn.disabled = currentIndex === 0;
   
-  // Next button: disabled on last question (optional, currently cycles)
-  // nextQuestionBtn.disabled = currentIndex === totalQuestions - 1;
+  // Next button: disabled on last question
+  nextQuestionBtn.disabled = currentIndex === problemsData.length - 1;
 }
 
 // Display error

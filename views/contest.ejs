@@ -27,41 +27,15 @@
         
         <aside class="problem-sidebar">
             <div class="problem-list">
-                <h3>Easy Level Problems</h3>
-                <ul>
-                    <li class="active"><a href="#">A. Two Sum</a></li>
-                    <li><a href="#">B. Valid Parentheses</a></li>
-                    <!-- <li><a href="#">C. Merge K Sorted Lists</a></li>
-                    <li><a href="#">D. The Trapped Rain Water</a></li> -->
+                <h3><%= difficulty.charAt(0).toUpperCase() + difficulty.slice(1) %> Level Problems</h3>
+                <ul id="problem-list">
+                    <li class="placeholder">Loading problems...</li>
                 </ul>
             </div>
 
-            <div class="problem-statement">
-                <h2>A. Two Sum</h2>
-                <span class="tag">Easy</span>
-                <p>Given an array of integers <code>nums</code> and an integer <code>target</code>, return indices of the two numbers such that they add up to <code>target</code>.</p>
-                <p>You may assume that each input would have <strong>exactly one solution</strong>, and you may not use the same element twice. You can return the answer in any order.</p>
-
-                <h3>Example 1:</h3>
-                <pre>
-<strong>Input:</strong> nums = [2,7,11,15], target = 9
-<strong>Output:</strong> [0,1]
-<strong>Explanation:</strong> Because nums[0] + nums[1] == 9, we return [0, 1].
-                </pre>
-
-                <h3>Example 2:</h3>
-                <pre>
-<strong>Input:</strong> nums = [3,2,4], target = 6
-<strong>Output:</strong> [1,2]
-                </pre>
-
-                <h3>Constraints:</h3>
-                <ul>
-                    <li><code>2 <= nums.length <= 10^4</code></li>
-                    <li><code>-10^9 <= nums[i] <= 10^9</code></li>
-                    <li><code>-10^9 <= target <= 10^9</code></li>
-                    <li>Only one valid answer exists.</li>
-                </ul>
+            <div class="problem-statement" id="problem-statement">
+                <h2>Loading...</h2>
+                <p>Select a problem to begin.</p>
             </div>
         </aside>
 
