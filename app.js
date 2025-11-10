@@ -366,7 +366,7 @@ app.post("/end-contest-session", async (req, res) => {
       teamCode: teamCode,
       email: email,
       // completionTime: "3 hours", // Contest duration (3 hours)
-      timeElapsed: completionTimeFormatted, // Actual time taken (e.g., "2h 30m")
+      timeTaken: completionTimeFormatted, // Actual time taken (e.g., "2h 30m")
       // timeElapsedSeconds: Math.floor(timeElapsedMs / 1000), // Time in seconds for calculations
       // completedAt: admin.firestore.FieldValue.serverTimestamp(),
       contestStartTime: admin.firestore.Timestamp.fromMillis(contestStartTime),
@@ -605,6 +605,43 @@ app.post("/api/execute", async (req, res) => {
     res.status(500).json({ 
       error: `Internal server error: ${error.message}` 
     });
+  }
+});
+
+// Submission save endpoint (saves code + output to Firestore)
+app.post("/api/submit", async (req, res) => {
+  try {
+    // Check authentication
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { code, language, output } = req.body;
+
+    if (!code || !language) {
+      return res.status(400).json({ error: "Code and language are required" });
+    }
+
+    const { teamCode, email } = req.session;
+    if (!teamCode || !email) {
+      return res.status(400).json({ error: "Missing session data" });
+    }
+
+    // Save submission to Firestore
+    await db.collection("submissions").add({
+      teamCode: teamCode,
+      email: email,
+      code: code,
+      language: language,
+      output: output || "",
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`✅ Submission saved for ${email} (Team: ${teamCode})`);
+    res.json({ success: true, message: "Submission saved" });
+  } catch (error) {
+    console.error("❌ Error saving submission:", error);
+    res.status(500).json({ error: "Failed to save submission" });
   }
 });
 

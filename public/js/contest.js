@@ -1,14 +1,16 @@
 // Contest page JavaScript for code execution
 
 // DOM elements (will be initialized on page load)
-let codeEditor;
-let languageSelect;
-let runCodeBtn;
-let submitCodeBtn;
-let outputContent;
-let clearOutputBtn;
-
-// Language-specific code templates
+ let codeEditor;
+ let languageSelect;
+ let runCodeBtn;
+ let submitCodeBtn;
+ let outputContent;
+ let clearOutputBtn;
+ // Store last execution result so submit can send output without re-executing
+ let lastExecutionResult = null;
+ let nextQuestionBtn;
+ let prevQuestionBtn;// Language-specific code templates
 const codeTemplates = {
   python: `# Write your code here
 def solve():
@@ -84,6 +86,25 @@ document.addEventListener("DOMContentLoaded", function() {
   if (submitCodeBtn) {
     submitCodeBtn.addEventListener("click", submitCode);
   }
+
+  // Navigation buttons (front-end only): cycle active problem
+  nextQuestionBtn = document.getElementById('next-question-btn');
+  prevQuestionBtn = document.getElementById('prev-question-btn');
+  
+  if (nextQuestionBtn) {
+    nextQuestionBtn.addEventListener('click', function() {
+      goToQuestion('next');
+    });
+  }
+  
+  if (prevQuestionBtn) {
+    prevQuestionBtn.addEventListener('click', function() {
+      goToQuestion('prev');
+    });
+  }
+  
+  // Initialize prev button state
+  updateNavigationButtons(0);
   
   if (codeEditor) {
     // Keyboard shortcut: Ctrl+Enter to run code
@@ -163,6 +184,69 @@ function displayOutput(result) {
   }
   
   outputContent.innerHTML = outputHTML;
+  // Save last execution result so submit can reference it
+  try {
+    lastExecutionResult = result || null;
+  } catch (e) {
+    lastExecutionResult = null;
+  }
+}
+
+// Front-end: navigate between problems in the sidebar and update the statement header/placeholder
+function goToQuestion(direction) {
+  const listItems = document.querySelectorAll('.problem-list ul li');
+  if (!listItems || listItems.length === 0) return;
+
+  const items = Array.from(listItems);
+  let activeIndex = items.findIndex(li => li.classList.contains('active'));
+  if (activeIndex === -1) activeIndex = 0;
+  
+  let nextIndex;
+  if (direction === 'next') {
+    nextIndex = (activeIndex + 1) % items.length;
+  } else {
+    nextIndex = activeIndex - 1;
+    if (nextIndex < 0) nextIndex = 0; // Stay on first question if trying to go previous
+  }
+
+  // Update active class
+  items[activeIndex].classList.remove('active');
+  items[nextIndex].classList.add('active');
+
+  // Update problem statement header to match link text, and set placeholder content
+  const anchor = items[nextIndex].querySelector('a');
+  const titleText = anchor ? anchor.textContent.trim() : `Problem ${nextIndex + 1}`;
+
+  const problemTitleEl = document.querySelector('.problem-statement h2');
+  if (problemTitleEl) problemTitleEl.textContent = titleText;
+
+  const tagEl = document.querySelector('.problem-statement .tag');
+  if (tagEl) tagEl.style.display = 'none';
+
+  // Replace statement content with a front-end placeholder (server should provide full content)
+  const stmtEl = document.querySelector('.problem-statement');
+  if (stmtEl) {
+    // Keep the heading, clear the rest and show a small placeholder message
+    const heading = stmtEl.querySelector('h2')?.outerHTML || `<h2>${titleText}</h2>`;
+    stmtEl.innerHTML = heading + `<p style="margin-top:0.5rem;">Problem statement not loaded (front-end navigation only). Use the server to fetch full problem content.</p>`;
+  }
+
+  // Update navigation button states
+  updateNavigationButtons(nextIndex);
+}
+
+// Update Previous/Next button states based on current question index
+function updateNavigationButtons(currentIndex) {
+  if (!prevQuestionBtn || !nextQuestionBtn) return;
+
+  const listItems = document.querySelectorAll('.problem-list ul li');
+  const totalQuestions = listItems.length;
+
+  // Previous button: disabled on first question
+  prevQuestionBtn.disabled = currentIndex === 0;
+  
+  // Next button: disabled on last question (optional, currently cycles)
+  // nextQuestionBtn.disabled = currentIndex === totalQuestions - 1;
 }
 
 // Display error
@@ -177,6 +261,14 @@ function displayError(error) {
       <strong>Error:</strong> ${escapeHtml(error)}
     </div>
   `;
+  // store error as last result so submit will include it as output
+  lastExecutionResult = {
+    stdout: "",
+    stderr: String(error),
+    compile_output: "",
+    message: "",
+    status: { id: 0, description: "Error" }
+  };
 }
 
 // Escape HTML to prevent XSS
@@ -248,25 +340,30 @@ async function submitCode() {
     return;
   }
   
-  // For now, submit does the same as run
-  // This can be extended later to save submissions to database
+  // Submit should only send code + latest output (no execution)
   const code = codeEditor.value.trim();
   const language = languageSelect.value;
-  
+
   if (!code) {
     displayError("Please enter some code to submit.");
     return;
   }
-  
+
+  // Determine output to send: prefer stdout, then stderr, compile_output, message
+  let outputToStore = "";
+  if (lastExecutionResult) {
+    outputToStore = lastExecutionResult.stdout || lastExecutionResult.stderr || lastExecutionResult.compile_output || lastExecutionResult.message || "";
+  }
+
   // Disable buttons and show loading
   runCodeBtn.disabled = true;
   submitCodeBtn.disabled = true;
   submitCodeBtn.textContent = "Submitting...";
-  
+
   outputContent.innerHTML = '<p class="output-placeholder">Submitting code...</p>';
-  
+
   try {
-    const response = await fetch("/api/execute", {
+    const response = await fetch("/api/submit", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -274,17 +371,17 @@ async function submitCode() {
       body: JSON.stringify({
         code: code,
         language: language,
-        stdin: ""
+        output: outputToStore // may be blank string
       })
     });
-    
+
     const result = await response.json();
-    
+
     if (!response.ok) {
       displayError(result.error || "Failed to submit code");
     } else {
-      displayOutput(result);
-      // TODO: Save submission to database
+      // Keep the displayed output as-is; show a small success message
+      outputContent.insertAdjacentHTML('afterbegin', `<div class="output-status status-success"><strong>Saved:</strong> Submission saved successfully</div>`);
       alert("Code submitted successfully!");
     }
   } catch (error) {
