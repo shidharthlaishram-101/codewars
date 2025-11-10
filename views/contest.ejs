@@ -11,10 +11,15 @@
     <header>
         <nav class="container">
             <!-- <a href="/" class="logo">CodeWars</a> -->
-            <div class="contest-timer">Time Left: <strong>01:28:45</strong></div>
-            <!-- <ul>
-                <li><a href="#" class="btn btn-primary">Submit</a></li>
-            </ul> -->
+            <div class="contest-timer">Time Left: <strong>03:00:00</strong></div>
+            <ul>
+                <li>
+                    <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                </li>
+                <li><button id="end-session-btn" class="btn btn-secondary">End Session</button></li>
+            </ul>
         </nav>
     </header>
 
@@ -22,12 +27,12 @@
         
         <aside class="problem-sidebar">
             <div class="problem-list">
-                <h3>Problems</h3>
+                <h3>Easy Level Problems</h3>
                 <ul>
                     <li class="active"><a href="#">A. Two Sum</a></li>
                     <li><a href="#">B. Valid Parentheses</a></li>
-                    <li><a href="#">C. Merge K Sorted Lists</a></li>
-                    <li><a href="#">D. The Trapped Rain Water</a></li>
+                    <!-- <li><a href="#">C. Merge K Sorted Lists</a></li>
+                    <li><a href="#">D. The Trapped Rain Water</a></li> -->
                 </ul>
             </div>
 
@@ -65,13 +70,11 @@
                 <div class="editor-header">
                     <label for="language">Language:</label>
                     <select id="language" name="language">
-                        <option value="python">Python 3</option>
-                        <option value="javascript">JavaScript (Node.js)</option>
-                        <option value="cpp">C++ 17 (GCC)</option>
-                        <option value="java">Java 11</option>
+                        <option value="python">Python</option>
+                        <option value="java">Java</option>
+                        <option value="c">C</option>
                     </select>
-                </div>
-                
+                </div>             
                 <textarea id="code-editor" spellcheck="false">
 # Write your code here
 def solve():
@@ -79,28 +82,89 @@ def solve():
                 </textarea>
                 
                 <div class="editor-footer">
-                    <button class="btn btn-secondary">Run Code</button>
-                    <button class="btn btn-primary">Submit Solution</button>
+                    <button id="run-code-btn" class="btn btn-secondary">Run Code</button>
+                    <button id="submit-code-btn" class="btn btn-primary">Submit Solution</button>
                 </div>
             </div>
 
             <div class="submission-status">
-                <h3>Submissions</h3>
-
-                <div class="submission-item">
-                    <span class="status-accepted">Accepted</span>
-                    <span class="problem-title">A. Two Sum</span>
-                    <span class="time">3 mins ago</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3>Output</h3>
+                    <button id="clear-output-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Clear</button>
                 </div>
-
-                <div class="submission-item">
-                    <span class="status-wrong">Wrong Answer</span>
-                    <span class="problem-title">A. Two Sum</span>
-                    <span class="time">5 mins ago</span>
+                <div id="output-content">
+                    <p class="output-placeholder">Output will appear here...</p>
                 </div>
             </div>
         </main>
     </div>
 
+    <!-- Contest Ended Modal -->
+    <div id="contest-ended-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>Contest Has Ended</h2>
+            <p>Thank you for participating in the contest!</p>
+            <p>We would love to hear your feedback about your experience.</p>
+            <button class="btn btn-primary" onclick="window.location.href='/feedback'">
+                Share Your Feedback
+            </button>
+        </div>
+    </div>
+
+    <script src="/js/darkmode.js"></script>
+    <script src="/js/timer_contest.js"></script>
+    <script src="/js/contest.js"></script>
+    <script>
+        // End Session button handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const endSessionBtn = document.getElementById('end-session-btn');
+            if (endSessionBtn) {
+                endSessionBtn.addEventListener('click', async function() {
+                    // Confirm action
+                    if (confirm('Are you sure you want to end your contest session? You will be redirected to the feedback page.')) {
+                        try {
+                            // Call endpoint to mark contest as ended
+                            const response = await fetch('/end-contest-session', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+
+                            const data = await response.json();
+                            
+                            if (response.ok) {
+                                // Show the contest ended modal
+                                if (typeof showContestEndedModal === 'function') {
+                                    showContestEndedModal();
+                                } else {
+                                    // Fallback if function not available yet
+                                    const modal = document.getElementById('contest-ended-modal');
+                                    if (modal) {
+                                        modal.style.display = 'flex';
+                                        document.body.style.overflow = 'hidden';
+                                    }
+                                }
+                            } else {
+                                alert('Error ending session. Please try again.');
+                            }
+                        } catch (error) {
+                            console.error('Error ending session:', error);
+                            // Still show modal even if request fails
+                            if (typeof showContestEndedModal === 'function') {
+                                showContestEndedModal();
+                            } else {
+                                const modal = document.getElementById('contest-ended-modal');
+                                if (modal) {
+                                    modal.style.display = 'flex';
+                                    document.body.style.overflow = 'hidden';
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

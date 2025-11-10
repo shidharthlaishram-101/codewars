@@ -305,7 +305,307 @@ app.get("/logout", (req, res) => {
 
 
 app.get("/contest", (req, res) => {
+  // Check if user is authenticated
+  if (!req.session || !req.session.authenticated) {
+    return res.redirect("/auth");
+  }
+
+  const { teamCode, email } = req.session;
+  
+  // Verify session has required data
+  if (!teamCode || !email) {
+    console.log("⚠️ Missing session data, redirecting to auth");
+    return res.redirect("/auth");
+  }
+
+  // Store contest start time if not already stored
+  if (!req.session.contestStartTime) {
+    req.session.contestStartTime = Date.now();
+    console.log(`⏱️ Contest started for ${email} (Team: ${teamCode}) at ${new Date(req.session.contestStartTime).toISOString()}`);
+  }
+
   res.render("contest", { title: "CodeWars Contest" });
+});
+
+// End contest session handler
+app.post("/end-contest-session", async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ success: false, error: "Authentication required" });
+    }
+
+    const { teamCode, email } = req.session;
+    
+    // Verify session has required data
+    if (!teamCode || !email) {
+      return res.status(400).json({ success: false, error: "Missing session data" });
+    }
+
+    // Calculate time completed
+    const contestStartTime = req.session.contestStartTime || Date.now();
+    const contestEndTime = Date.now();
+    const timeElapsedMs = contestEndTime - contestStartTime;
+    const timeElapsedHours = timeElapsedMs / (1000 * 60 * 60);
+    const timeElapsedMinutes = timeElapsedMs / (1000 * 60);
+    
+    // Format completion time
+    let completionTimeFormatted;
+    if (timeElapsedHours >= 1) {
+      const hours = Math.floor(timeElapsedHours);
+      const minutes = Math.floor((timeElapsedMinutes % 60));
+      completionTimeFormatted = minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+    } else {
+      completionTimeFormatted = `${Math.floor(timeElapsedMinutes)}m`;
+    }
+
+    // Store completion time in Firestore
+    // The completionTime field stores "3 hours" as the contest duration
+    // timeElapsed stores the actual time taken by the user
+    await db.collection("contest_completions").add({
+      teamCode: teamCode,
+      email: email,
+      // completionTime: "3 hours", // Contest duration (3 hours)
+      timeElapsed: completionTimeFormatted, // Actual time taken (e.g., "2h 30m")
+      // timeElapsedSeconds: Math.floor(timeElapsedMs / 1000), // Time in seconds for calculations
+      // completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      contestStartTime: admin.firestore.Timestamp.fromMillis(contestStartTime),
+      contestEndTime: admin.firestore.Timestamp.fromMillis(contestEndTime)
+    });
+
+    // Mark contest as ended in session (but keep session for feedback)
+    req.session.contestEnded = true;
+    
+    console.log(`✅ Contest session ended for ${email} (Team: ${teamCode}) - Completed in: ${completionTimeFormatted}`);
+    res.json({ 
+      success: true, 
+      message: "Contest session ended",
+      completionTime: completionTimeFormatted
+    });
+  } catch (error) {
+    console.error("❌ Error ending contest session:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: "Failed to save contest completion data" 
+    });
+  }
+});
+
+// Feedback page
+app.get("/feedback", (req, res) => {
+  // Check if user is authenticated
+  if (!req.session || !req.session.authenticated) {
+    return res.redirect("/auth");
+  }
+
+  const { teamCode, email } = req.session;
+  
+  // Verify session has required data
+  if (!teamCode || !email) {
+    console.log("⚠️ Missing session data, redirecting to auth");
+    return res.redirect("/auth");
+  }
+
+  res.render("feedback", { title: "Share Your Feedback" });
+});
+
+// Feedback submission handler
+app.post("/feedback", async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ success: false, error: "Authentication required" });
+    }
+
+    const { teamCode, email } = req.session;
+    
+    // Verify session has required data
+    if (!teamCode || !email) {
+      console.log("⚠️ Missing session data for feedback submission");
+      return res.status(401).json({ success: false, error: "Session expired. Please login again." });
+    }
+
+    const { rating, comments } = req.body;
+
+    // Save feedback to Firestore with email and teamCode
+    await db.collection("feedback").add({
+      rating: parseInt(rating) || 0,
+      comments: comments || "",
+      email: email,
+      teamCode: teamCode,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`✅ Feedback submitted by ${email} (Team: ${teamCode})`);
+    res.json({ success: true, message: "Thank you for your feedback!" });
+  } catch (error) {
+    console.error("❌ Error saving feedback:", error);
+    res.status(500).json({ success: false, error: "Failed to save feedback" });
+  }
+});
+
+// Judge0 API Configuration
+const JUDGE0_API_URL = process.env.JUDGE0_API_URL || "https://api.shidharthlaishram101.online";
+// Optional: Add authentication headers if your Judge0 API requires them
+// const JUDGE0_AUTH_HEADER = process.env.JUDGE0_AUTH_HEADER; // e.g., "Bearer your-token" or "X-RapidAPI-Key: your-key"
+// const JUDGE0_AUTH_HEADER_NAME = process.env.JUDGE0_AUTH_HEADER_NAME || "Authorization";
+
+// Language ID mapping for Judge0 API
+// Python 3 = 92, Java = 62, C = 50
+const LANGUAGE_IDS = {
+  python: 71,
+  java: 62,
+  c: 50
+};
+
+// Language name mapping (for display)
+const LANGUAGE_NAMES = {
+  python: "Python 3",
+  java: "Java",
+  c: "C (GCC)"
+};
+
+// Helper function to build Judge0 API headers
+function getJudge0Headers() {
+  const headers = {
+    "Content-Type": "application/json",
+  };
+  
+  // Add authentication header if configured
+  if (process.env.JUDGE0_AUTH_HEADER) {
+    const headerName = process.env.JUDGE0_AUTH_HEADER_NAME || "Authorization";
+    headers[headerName] = process.env.JUDGE0_AUTH_HEADER;
+  }
+  
+  return headers;
+}
+
+// Code execution endpoint
+app.post("/api/execute", async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { code, language, stdin } = req.body;
+
+    // Validate input
+    if (!code || !language) {
+      return res.status(400).json({ error: "Code and language are required" });
+    }
+
+    // Validate language
+    if (!LANGUAGE_IDS[language]) {
+      return res.status(400).json({ 
+        error: `Unsupported language: ${language}. Supported languages: ${Object.keys(LANGUAGE_IDS).join(", ")}` 
+      });
+    }
+
+    const languageId = LANGUAGE_IDS[language];
+    const languageName = LANGUAGE_NAMES[language];
+
+    console.log(`🚀 Executing ${languageName} code for user: ${req.session.email}`);
+
+    // Step 1: Create submission
+    const submitResponse = await fetch(`${JUDGE0_API_URL}/submissions?base64_encoded=false&wait=false`, {
+      method: "POST",
+      headers: getJudge0Headers(),
+      body: JSON.stringify({
+        source_code: code,
+        language_id: languageId,
+        stdin: stdin || "",
+        cpu_time_limit: 2, // 2 seconds CPU time limit
+        memory_limit: 128000, // 128MB memory limit
+      }),
+    });
+
+    if (!submitResponse.ok) {
+      const errorText = await submitResponse.text();
+      console.error(`❌ Judge0 submission failed: ${submitResponse.status} - ${errorText}`);
+      return res.status(500).json({ 
+        error: `Judge0 API error: ${submitResponse.status}. Please try again.` 
+      });
+    }
+
+    const submissionData = await submitResponse.json();
+    const token = submissionData.token;
+
+    if (!token) {
+      console.error("❌ No token received from Judge0");
+      return res.status(500).json({ error: "Failed to get submission token from Judge0" });
+    }
+
+    console.log(`📝 Submission created with token: ${token}`);
+
+    // Step 2: Poll for result (with timeout)
+    const maxAttempts = 30; // Maximum polling attempts
+    const pollInterval = 1000; // 1 second between polls
+    let attempts = 0;
+    let result = null;
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      
+      const statusResponse = await fetch(`${JUDGE0_API_URL}/submissions/${token}?base64_encoded=false`, {
+        method: "GET",
+        headers: getJudge0Headers(),
+      });
+
+      if (!statusResponse.ok) {
+        console.error(`❌ Judge0 status check failed: ${statusResponse.status}`);
+        break;
+      }
+
+      result = await statusResponse.json();
+      attempts++;
+
+      // Status IDs: 1 = In Queue, 2 = Processing, 3 = Accepted, 4+ = Error/Other
+      // If status.id > 2, the submission has completed (successfully or with error)
+      if (result.status && result.status.id > 2) {
+        console.log(`✅ Submission ${token} completed with status: ${result.status.description}`);
+        break;
+      }
+
+      // Still processing
+      console.log(`⏳ Submission ${token} status: ${result.status?.description || "Processing"} (attempt ${attempts}/${maxAttempts})`);
+    }
+
+    // If we exhausted attempts and result is still processing
+    if (result && result.status && result.status.id <= 2) {
+      console.warn(`⚠️ Submission ${token} timed out after ${maxAttempts} attempts`);
+      return res.status(504).json({ 
+        error: "Code execution timed out. Please try again with simpler code." 
+      });
+    }
+
+    if (!result) {
+      return res.status(500).json({ error: "Failed to get execution result from Judge0" });
+    }
+
+    // Format response
+    const response = {
+      stdout: result.stdout || "",
+      stderr: result.stderr || "",
+      compile_output: result.compile_output || "",
+      message: result.message || "",
+      status: {
+        id: result.status?.id || 0,
+        description: result.status?.description || "Unknown"
+      },
+      time: result.time ? parseFloat(result.time).toFixed(2) : null,
+      memory: result.memory || null
+    };
+
+    console.log(`✅ Code execution completed for user: ${req.session.email}`);
+    res.json(response);
+
+  } catch (error) {
+    console.error("❌ Error executing code:", error);
+    res.status(500).json({ 
+      error: `Internal server error: ${error.message}` 
+    });
+  }
 });
 
 // Start server

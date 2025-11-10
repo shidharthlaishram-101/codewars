@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Share Your Feedback - Prajyuktam CodeWars</title>
+  <link rel="stylesheet" href="/css/contest.css">
+  <style>
+    .feedback-container {
+      max-width: 600px;
+      margin: 4rem auto;
+      padding: 2rem;
+      background-color: var(--surface-color);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+    .feedback-container h1 {
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    .feedback-container p {
+      text-align: center;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+    .form-group textarea {
+      width: 100%;
+      min-height: 150px;
+      padding: 0.75rem;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      font-family: inherit;
+      resize: vertical;
+    }
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+    .rating-group {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin: 1rem 0;
+    }
+    .rating-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+    }
+    .rating-option input[type="radio"] {
+      margin-bottom: 0.5rem;
+    }
+    .rating-option label {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .submit-btn {
+      width: 100%;
+      padding: 0.75rem;
+      margin-top: 1rem;
+    }
+    .success-message {
+      text-align: center;
+      color: var(--success-color);
+      margin-top: 1rem;
+      display: none;
+    }
+    .success-message.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav class="container">
+      <div class="logo">Prajyuktam CodeWars</div>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="feedback-container">
+      <h1>Contest Ended</h1>
+      <p>Thank you for participating in the contest! We'd love to hear your feedback.</p>
+      
+      <form id="feedback-form" action="/feedback" method="POST">
+        <div class="form-group">
+          <label for="rating">How would you rate your experience?</label>
+          <div class="rating-group">
+            <div class="rating-option">
+              <input type="radio" id="rating1" name="rating" value="1" required>
+              <label for="rating1">1</label>
+            </div>
+            <div class="rating-option">
+              <input type="radio" id="rating2" name="rating" value="2" required>
+              <label for="rating2">2</label>
+            </div>
+            <div class="rating-option">
+              <input type="radio" id="rating3" name="rating" value="3" required>
+              <label for="rating3">3</label>
+            </div>
+            <div class="rating-option">
+              <input type="radio" id="rating4" name="rating" value="4" required>
+              <label for="rating4">4</label>
+            </div>
+            <div class="rating-option">
+              <input type="radio" id="rating5" name="rating" value="5" required>
+              <label for="rating5">5</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="comments">Comments or Suggestions:</label>
+          <textarea id="comments" name="comments" placeholder="Share your thoughts about the contest, problems, platform, or any suggestions for improvement..."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary submit-btn">Submit Feedback</button>
+        <div class="success-message" id="success-message">
+          Thank you for your feedback! We appreciate your input.
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('feedback-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(this);
+      const data = {
+        rating: formData.get('rating'),
+        comments: formData.get('comments')
+      };
+
+      try {
+        const response = await fetch('/feedback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          document.getElementById('success-message').classList.add('show');
+          this.reset();
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 2000);
+        } else {
+          alert('Failed to submit feedback. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+      }
+    });
+  </script>
+</body>
+</html>
+

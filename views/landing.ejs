@@ -11,13 +11,23 @@
     <header>
         <nav class="container">
             <!-- <a href="/" class="logo">CodeWars</a> -->
-             <div class="contest-timer">Time Left: <strong>01:28:45</strong></div>
-            <% if (authorizedEmail) { %>
-                <div class="user-info">
-                    <span class="email"><%= authorizedEmail %></span>
-                    <a href="/logout" class="logout-btn">Logout</a>
-                </div>
-            <% } %>
+            <a class="logo">Hey there!</a>
+            <!-- <div class="contest-timer">Time Left: <strong>01:28:45</strong></div> -->
+            <ul>
+                <!-- <li>
+                    <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                </li> -->
+                <% if (authorizedEmail) { %>
+                    <li>
+                        <div class="user-info">
+                            <span class="email"><%= authorizedEmail %></span>
+                            <!-- <a href="/logout" class="logout-btn">Logout</a> -->
+                        </div>
+                    </li>
+                <% } %>
+            </ul>
         </nav>
     </header>
 
@@ -75,9 +85,15 @@
         </section>
     </main>
 
+    <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">
+        <span class="theme-icon">🌙</span>
+    </button>
+
     <!-- <footer>
         <p>&copy; 2025 CodeWars. All rights reserved.</p>
     </footer> -->
 
+    <script src="/js/darkmode.js"></script>
+    
 </body>
 </html>
