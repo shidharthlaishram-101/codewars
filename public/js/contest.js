@@ -59,7 +59,7 @@ async function loadProblems() {
     const urlParams = new URLSearchParams(window.location.search);
     const difficulty = urlParams.get('difficulty') || 'easy';
     
-    const response = await fetch(`/api/problems?difficulty=${difficulty}`);
+  const response = await fetch(`/api/problems?difficulty=${difficulty}`, { credentials: 'include' });
     const data = await response.json();
     
     if (!response.ok) {
@@ -386,6 +386,7 @@ async function executeCode() {
       headers: {
         "Content-Type": "application/json"
       },
+      credentials: 'include',
       body: JSON.stringify({
         code: code,
         language: language,
@@ -448,6 +449,7 @@ async function submitCode() {
       headers: {
         "Content-Type": "application/json"
       },
+      credentials: 'include',
       body: JSON.stringify({
         code: code,
         language: language,

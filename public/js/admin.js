@@ -26,7 +26,7 @@ let constraintsData = [];
 // Load all problems for admin
 async function loadProblems() {
   try {
-    const response = await fetch('/api/admin/problems');
+    const response = await fetch('/api/admin/problems', { credentials: 'include' });
     const data = await response.json();
 
     if (!response.ok) {
@@ -104,8 +104,8 @@ function closeProblemModal() {
 // Open edit problem modal
 async function openEditProblemModal(problemId) {
   try {
-    const response = await fetch(`/api/admin/problems`);
-    const data = await response.json();
+  const response = await fetch(`/api/admin/problems`, { credentials: 'include' });
+  const data = await response.json();
     
     const problem = data.problems.find(p => p.id === problemId);
     if (!problem) {
@@ -231,6 +231,7 @@ document.getElementById('problemForm').addEventListener('submit', async (e) => {
       // Update
       response = await fetch(`/api/admin/problems/${currentEditingProblemId}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(problem)
       });
@@ -238,6 +239,7 @@ document.getElementById('problemForm').addEventListener('submit', async (e) => {
       // Create
       response = await fetch('/api/admin/problems', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(problem)
       });
@@ -265,7 +267,8 @@ async function deleteProblem(problemId) {
 
   try {
     const response = await fetch(`/api/admin/problems/${problemId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      credentials: 'include'
     });
 
     const data = await response.json();

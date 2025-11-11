@@ -8,6 +8,12 @@ const session = require("express-session");
 // Session middleware (add before routes)
 // Use an environment variable for the session secret in production.
 // Falls back to a local default only for development.
+// If running behind a proxy (Vercel), trust the first proxy so secure cookies work
+const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+if (isProduction) {
+  app.set('trust proxy', 1);
+}
+
 app.use(session({
   secret: process.env.SESSION_SECRET || "dev_local_secret",
   resave: false,
@@ -15,6 +21,10 @@ app.use(session({
   cookie: {
     maxAge: 60 * 60 * 1000, // 1 hour session
     httpOnly: true,
+    // In production (Vercel) the app is behind a proxy and served over HTTPS.
+    // Set secure and SameSite to allow cookies to be sent from the browser.
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax'
   }
 }));
 
@@ -505,6 +515,14 @@ const JUDGE0_API_URL = process.env.JUDGE0_API_URL || "https://api.shidharthlaish
 // const JUDGE0_AUTH_HEADER = process.env.JUDGE0_AUTH_HEADER; // e.g., "Bearer your-token" or "X-RapidAPI-Key: your-key"
 // const JUDGE0_AUTH_HEADER_NAME = process.env.JUDGE0_AUTH_HEADER_NAME || "Authorization";
 
+// Startup warnings to help with deployment troubleshooting
+if (isProduction && !process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+  console.warn("⚠️ FIREBASE_SERVICE_ACCOUNT_KEY is not set in environment. In production you should provide the service account JSON via this env var (stringified). Falling back to local file may fail on Vercel.");
+}
+if (!process.env.JUDGE0_AUTH_HEADER) {
+  console.warn("⚠️ JUDGE0_AUTH_HEADER is not set. If your Judge0 API requires authentication this will cause 'Authentication Required' errors in production. Set JUDGE0_AUTH_HEADER and optionally JUDGE0_AUTH_HEADER_NAME in your environment.");
+}
+
 // Language ID mapping for Judge0 API
 // Python 3 = 92, Java = 62, C = 50
 const LANGUAGE_IDS = {
@@ -578,6 +596,12 @@ app.post("/api/execute", async (req, res) => {
     if (!submitResponse.ok) {
       const errorText = await submitResponse.text();
       console.error(`❌ Judge0 submission failed: ${submitResponse.status} - ${errorText}`);
+      // Provide a helpful error when authentication is missing/invalid
+      if (submitResponse.status === 401 || submitResponse.status === 403) {
+        return res.status(502).json({ 
+          error: `Judge0 authentication failed (${submitResponse.status}). Please set JUDGE0_AUTH_HEADER (and JUDGE0_AUTH_HEADER_NAME if needed) in your deployment environment.`
+        });
+      }
       return res.status(500).json({ 
         error: `Judge0 API error: ${submitResponse.status}. Please try again.` 
       });
