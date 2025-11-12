@@ -1,6 +1,10 @@
+node_modules/
 serviceAccountKey.json
-convert-service-account.js
-serviceAccountKey-singleline.txt
-VERCEL_ENV_SETUP.md
-VERCEL_DEPLOYMENT.md
 .env
+.DS_Store
+.vscode/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+serviceAccountKey.json
+firebase-diagnostics.html

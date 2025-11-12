@@ -7,179 +7,59 @@ const app = express();
 const session = require("express-session");
 
 // Session middleware (add before routes)
+// Use an environment variable for the session secret in production.
+// Falls back to a local default only for development.
+// If running behind a proxy (Vercel), trust the first proxy so secure cookies work
+const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+if (isProduction) {
+  app.set('trust proxy', 1);
+}
+
 app.use(session({
-  secret: process.env.SESSION_SECRET || "codewars_secret_key",
+  secret: process.env.SESSION_SECRET || "dev_local_secret",
   resave: false,
   saveUninitialized: false,
   cookie: {
     maxAge: 60 * 60 * 1000, // 1 hour session
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    // In production (Vercel) the app is behind a proxy and served over HTTPS.
+    // Set secure and SameSite to allow cookies to be sent from the browser.
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax'
   }
 }));
 
 
 // Initialize Firebase Admin SDK
+// Prefer loading the service account JSON from an environment variable
+// (FIREBASE_SERVICE_ACCOUNT_KEY) so you don't need to commit the key file.
+// If the env var is not present, fall back to the local `serviceAccountKey.json`.
 let serviceAccount;
-let db = null;
-let firebaseInitialized = false;
-
-// Function to initialize Firebase (can be called multiple times safely)
-function initializeFirebase() {
-  // If already initialized, return
-  if (firebaseInitialized && db) {
-    return db;
-  }
-
+if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
   try {
-    // Try to load from environment variable first (for Vercel)
-    const envKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    if (envKey) {
-      console.log("🔑 Loading Firebase service account from environment variable...");
-      console.log("   Env var length:", envKey.length);
-      console.log("   Env var first 50 chars:", envKey.substring(0, 50));
-      console.log("   Env var last 50 chars:", envKey.substring(Math.max(0, envKey.length - 50)));
-      
-      try {
-        // Try parsing as-is first
-        serviceAccount = JSON.parse(envKey);
-        console.log("   ✅ JSON parsed successfully");
-      } catch (parseError) {
-        console.error("❌ Error parsing FIREBASE_SERVICE_ACCOUNT_KEY:", parseError.message);
-        console.error("   Parse error at position:", parseError.message.match(/position (\d+)/));
-        
-        // Try to fix common issues
-        let fixedKey = envKey;
-        // Remove any actual newlines that might have been added
-        fixedKey = fixedKey.replace(/(?<!")\r?\n(?![^"]*")/g, '');
-        // Ensure proper formatting
-        try {
-          serviceAccount = JSON.parse(fixedKey);
-          console.log("   ✅ JSON parsed successfully after fixing");
-        } catch (secondParseError) {
-          console.error("❌ Still failed after fix attempt:", secondParseError.message);
-          throw new Error("Invalid JSON in FIREBASE_SERVICE_ACCOUNT_KEY environment variable. Check the format - it should be a single-line JSON string.");
-        }
-      }
-      
-      // Validate required fields
-      if (!serviceAccount.type || serviceAccount.type !== 'service_account') {
-        throw new Error("Invalid service account: missing or incorrect 'type' field");
-      }
-      if (!serviceAccount.project_id) {
-        throw new Error("Invalid service account: missing 'project_id' field");
-      }
-      if (!serviceAccount.private_key) {
-        throw new Error("Invalid service account: missing 'private_key' field");
-      }
-      if (!serviceAccount.client_email) {
-        throw new Error("Invalid service account: missing 'client_email' field");
-      }
-      
-      console.log("   ✅ Service account validation passed");
-    } else {
-      // Fallback to local file (for development)
-      console.log("🔑 Loading Firebase service account from local file...");
-      const serviceAccountPath = path.join(__dirname, "serviceAccountKey.json");
-      console.log("   Looking for file at:", serviceAccountPath);
-      
-      // Check if file exists
-      if (!fs.existsSync(serviceAccountPath)) {
-        throw new Error(`Service account file not found at: ${serviceAccountPath}`);
-      }
-      
-      try {
-        const fileContent = fs.readFileSync(serviceAccountPath, "utf8");
-        serviceAccount = JSON.parse(fileContent);
-        console.log("   File found and parsed successfully");
-      } catch (fileError) {
-        console.error("❌ Error loading serviceAccountKey.json:", fileError.message);
-        if (fileError instanceof SyntaxError) {
-          console.error("   This looks like a JSON parsing error. Check if the file is valid JSON.");
-        }
-        throw fileError;
-      }
-    }
-    
-    if (!serviceAccount) {
-      throw new Error("Service account is null or undefined");
-    }
-    
-    console.log("✅ Firebase service account loaded successfully");
-    console.log("   Project ID:", serviceAccount.project_id);
-    console.log("   Client Email:", serviceAccount.client_email);
-  } catch (error) {
-    console.error("❌ Error loading Firebase service account:", error.message);
-    console.error("Full error:", error);
-    serviceAccount = null;
-    return null;
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+  } catch (err) {
+    console.error("❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", err);
+    process.exit(1);
   }
-
-  // Initialize Firebase Admin and Firestore if service account is available
-  if (serviceAccount) {
-    try {
-      // Check if Firebase is already initialized (for serverless)
-      if (admin.apps.length === 0) {
-        console.log("🔄 Initializing Firebase Admin SDK...");
-        admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount),
-        });
-        console.log("✅ Firebase Admin initialized successfully");
-        firebaseInitialized = true;
-      } else {
-        console.log("✅ Firebase Admin already initialized (serverless reuse)");
-        console.log("   Number of apps:", admin.apps.length);
-        firebaseInitialized = true;
-      }
-      
-      // Always initialize Firestore (even if Firebase was already initialized)
-      console.log("🔄 Initializing Firestore database...");
-      try {
-        db = admin.firestore();
-        console.log("✅ Firestore database initialized");
-        console.log("   DB type:", typeof db);
-        console.log("   DB available:", !!db);
-      } catch (firestoreError) {
-        console.error("❌ Error getting Firestore instance:", firestoreError.message);
-        throw firestoreError;
-      }
-      
-      // Test connection (only in development)
-      if (process.env.NODE_ENV !== "production") {
-        db.listCollections()
-          .then(collections => {
-            console.log("✅ Firestore connected! Existing collections:");
-            if (collections.length === 0) console.log("   (no collections yet)");
-            else collections.forEach(c => console.log(" -", c.id));
-          })
-          .catch(err => {
-            console.error("❌ Firestore connection test failed:", err.message);
-            console.error("   This might be a permissions issue. Check your Firebase security rules.");
-          });
-      }
-      
-      return db;
-    } catch (error) {
-      console.error("❌ Error initializing Firebase/Firestore:", error.message);
-      console.error("Error name:", error.name);
-      console.error("Error stack:", error.stack);
-      db = null;
-      firebaseInitialized = false;
-      return null;
-    }
-  } else {
-    console.error("❌ Firebase service account not available. Database will not work.");
-    console.error("Please set FIREBASE_SERVICE_ACCOUNT_KEY environment variable or provide serviceAccountKey.json");
-    console.error("   Current working directory:", __dirname);
-    console.error("   NODE_ENV:", process.env.NODE_ENV || "development");
-    console.error("   FIREBASE_SERVICE_ACCOUNT_KEY exists:", !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-    return null;
-  }
+} else {
+  serviceAccount = require("./serviceAccountKey.json");
 }
 
-// Initialize Firebase on module load
-initializeFirebase();
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+const db = admin.firestore();
+
+// Confirm Firestore connection
+db.listCollections()
+  .then(collections => {
+    console.log("✅ Firestore connected! Existing collections:");
+    if (collections.length === 0) console.log("   (no collections yet)");
+    else collections.forEach(c => console.log(" -", c.id));
+  })
+  .catch(err => console.error("❌ Firestore connection failed:", err.message));
 
 // Express setup
 app.set("view engine", "ejs");
@@ -489,96 +369,486 @@ app.get("/logout", (req, res) => {
 });
 
 
-app.get("/contest", (req, res) => {
-  res.render("contest", { title: "CodeWars Contest" });
-});
-
-// Admin Dashboard — Fetch all registered teams
-app.get("/admin", async (req, res) => {
+// Fetch problems by difficulty level from Firebase
+app.get("/api/problems", async (req, res) => {
   try {
-    const dbInstance = ensureDb();
-    
-    const snapshot = await dbInstance.collection("registrations")
-      .orderBy("createdAt", "desc")
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { difficulty } = req.query;
+
+    if (!difficulty || !["easy", "medium", "hard"].includes(difficulty)) {
+      return res.status(400).json({ error: "Invalid difficulty level. Must be easy, medium, or hard." });
+    }
+
+    // Fetch problems from Firestore and filter/sort in memory to avoid composite index requirement
+    const snapshot = await db.collection("problems")
+      .where("difficulty", "==", difficulty)
       .get();
 
-    const participants = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    if (snapshot.empty) {
+      console.log(`⚠️ No problems found for difficulty: ${difficulty}`);
+      return res.json({ problems: [] });
+    }
 
-    res.render("admin", { title: "Admin Dashboard", participants });
-  } catch (err) {
-    console.error("❌ Error fetching participants:", err);
-    res.render("admin", { title: "Admin Dashboard", participants: [] });
+    const problems = [];
+    snapshot.forEach(doc => {
+      problems.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+
+    // Sort by order field
+    problems.sort((a, b) => (a.order || 999) - (b.order || 999));
+
+    console.log(`✅ Fetched ${problems.length} problems for difficulty: ${difficulty}`);
+    res.json({ problems });
+  } catch (error) {
+    console.error("❌ Error fetching problems:", error);
+    res.status(500).json({ error: "Failed to fetch problems" });
   }
 });
 
-// Delete a team registration
-app.post("/admin/delete", async (req, res) => {
+// Fetch code snippets for a problem
+app.get("/api/snippets/:problemId", async (req, res) => {
   try {
-    const dbInstance = ensureDb();
-    
-    const { id } = req.body;
-    if (!id) {
-      console.log("❌ No ID received for deletion");
-      return res.status(400).send("Missing registration ID");
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ error: "Authentication required" });
     }
 
-    const docRef = dbInstance.collection("registrations").doc(id);
-    const docSnap = await docRef.get();
+    const { problemId } = req.params;
 
-    if (!docSnap.exists) {
-      console.log(`⚠️ Document with ID ${id} not found in Firestore`);
-      return res.redirect("/admin");
-    }
+    const snapshot = await db.collection("code_snippets")
+      .where("problemId", "==", problemId)
+      .get();
 
-    await docRef.delete();
-    console.log(`✅ Deleted team registration: ${id}`);
+    const snippets = [];
+    snapshot.forEach(doc => {
+      snippets.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
 
-    // Redirect for Firestore consistency
-    res.redirect("/admin");
-  } catch (err) {
-    console.error("❌ Error deleting registration:", err);
-    res.status(500).send("Internal Server Error");
+    console.log(`✅ Fetched ${snippets.length} code snippets for problem: ${problemId}`);
+    res.json({ snippets });
+  } catch (error) {
+    console.error("❌ Error fetching code snippets:", error);
+    res.status(500).json({ error: "Failed to fetch code snippets" });
   }
 });
 
-// Diagnostic endpoint (remove in production or protect with auth)
-app.get("/health", (req, res) => {
-  // Try to initialize if not already done
-  if (!db) {
-    console.log("⚠️ Health check: DB not initialized, attempting initialization...");
-    initializeFirebase();
+app.get("/contest", (req, res) => {
+  // Check if user is authenticated
+  if (!req.session || !req.session.authenticated) {
+    return res.redirect("/auth");
+  }
+
+  const { teamCode, email } = req.session;
+  
+  // Verify session has required data
+  if (!teamCode || !email) {
+    console.log("⚠️ Missing session data, redirecting to auth");
+    return res.redirect("/auth");
+  }
+
+  // Get difficulty level from query params (default to easy)
+  const difficulty = req.query.difficulty || "easy";
+  
+  if (!["easy", "medium", "hard"].includes(difficulty)) {
+    return res.status(400).render("error", { message: "Invalid difficulty level" });
+  }
+
+  // Store contest start time if not already stored
+  if (!req.session.contestStartTime) {
+    req.session.contestStartTime = Date.now();
+    console.log(`⏱️ Contest started for ${email} (Team: ${teamCode}) at ${new Date(req.session.contestStartTime).toISOString()}`);
+  }
+
+  // Store difficulty in session
+  req.session.contestDifficulty = difficulty;
+
+  res.render("contest", { 
+    title: "CodeWars Contest",
+    difficulty: difficulty
+  });
+});
+
+// End contest session handler
+app.post("/end-contest-session", async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ success: false, error: "Authentication required" });
+    }
+
+    const { teamCode, email } = req.session;
+    
+    // Verify session has required data
+    if (!teamCode || !email) {
+      return res.status(400).json({ success: false, error: "Missing session data" });
+    }
+
+    // Calculate time completed
+     // Get the disclaimer acceptance time from the request body (sent from frontend)
+     // This ensures we count time from when user accepted disclaimer, not page load
+     const { disclaimerAcceptedTime } = req.body;
+     const contestStartTime = disclaimerAcceptedTime ? parseInt(disclaimerAcceptedTime) : (req.session.contestStartTime || Date.now());
+    const contestEndTime = Date.now();
+    const timeElapsedMs = contestEndTime - contestStartTime;
+    const timeElapsedHours = timeElapsedMs / (1000 * 60 * 60);
+    const timeElapsedMinutes = timeElapsedMs / (1000 * 60);
+    
+    // Format completion time
+    let completionTimeFormatted;
+    if (timeElapsedHours >= 1) {
+      const hours = Math.floor(timeElapsedHours);
+      const minutes = Math.floor((timeElapsedMinutes % 60));
+      completionTimeFormatted = minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+    } else {
+      completionTimeFormatted = `${Math.floor(timeElapsedMinutes)}m`;
+    }
+
+    // Store completion time in Firestore
+    // The completionTime field stores "3 hours" as the contest duration
+    // timeElapsed stores the actual time taken by the user
+    await db.collection("contest_completions").add({
+      teamCode: teamCode,
+      email: email,
+      // completionTime: "3 hours", // Contest duration (3 hours)
+      timeTaken: completionTimeFormatted, // Actual time taken (e.g., "2h 30m")
+      // timeElapsedSeconds: Math.floor(timeElapsedMs / 1000), // Time in seconds for calculations
+      // completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      contestStartTime: admin.firestore.Timestamp.fromMillis(contestStartTime),
+      contestEndTime: admin.firestore.Timestamp.fromMillis(contestEndTime)
+    });
+
+    // Mark contest as ended in session (but keep session for feedback)
+    req.session.contestEnded = true;
+    
+    console.log(`✅ Contest session ended for ${email} (Team: ${teamCode}) - Completed in: ${completionTimeFormatted}`);
+    res.json({ 
+      success: true, 
+      message: "Contest session ended",
+      completionTime: completionTimeFormatted
+    });
+  } catch (error) {
+    console.error("❌ Error ending contest session:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: "Failed to save contest completion data" 
+    });
+  }
+});
+
+// Feedback page
+app.get("/feedback", (req, res) => {
+  // Check if user is authenticated
+  if (!req.session || !req.session.authenticated) {
+    return res.redirect("/auth");
+  }
+
+  const { teamCode, email } = req.session;
+  
+  // Verify session has required data
+  if (!teamCode || !email) {
+    console.log("⚠️ Missing session data, redirecting to auth");
+    return res.redirect("/auth");
+  }
+
+  res.render("feedback", { title: "Share Your Feedback" });
+});
+
+// Feedback submission handler
+app.post("/feedback", async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ success: false, error: "Authentication required" });
+    }
+
+    const { teamCode, email } = req.session;
+    
+    // Verify session has required data
+    if (!teamCode || !email) {
+      console.log("⚠️ Missing session data for feedback submission");
+      return res.status(401).json({ success: false, error: "Session expired. Please login again." });
+    }
+
+    const { rating, comments } = req.body;
+
+    // Save feedback to Firestore with email and teamCode
+    await db.collection("feedback").add({
+      rating: parseInt(rating) || 0,
+      comments: comments || "",
+      email: email,
+      teamCode: teamCode,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`✅ Feedback submitted by ${email} (Team: ${teamCode})`);
+    res.json({ success: true, message: "Thank you for your feedback!" });
+  } catch (error) {
+    console.error("❌ Error saving feedback:", error);
+    res.status(500).json({ success: false, error: "Failed to save feedback" });
+  }
+});
+
+// Judge0 API Configuration
+const JUDGE0_API_URL = process.env.JUDGE0_API_URL || "https://judgeapi.shidharthlaishram101.online";
+// Optional: Add authentication headers if your Judge0 API requires them
+// const JUDGE0_AUTH_HEADER = process.env.JUDGE0_AUTH_HEADER; // e.g., "Bearer your-token" or "X-RapidAPI-Key: your-key"
+// const JUDGE0_AUTH_HEADER_NAME = process.env.JUDGE0_AUTH_HEADER_NAME || "Authorization";
+
+// Startup warnings to help with deployment troubleshooting
+if (isProduction && !process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+  console.warn("⚠️ FIREBASE_SERVICE_ACCOUNT_KEY is not set in environment. In production you should provide the service account JSON via this env var (stringified). Falling back to local file may fail on Vercel.");
+}
+if (!process.env.JUDGE0_AUTH_HEADER) {
+  console.warn("⚠️ JUDGE0_AUTH_HEADER is not set. If your Judge0 API requires authentication this will cause 'Authentication Required' errors in production. Set JUDGE0_AUTH_HEADER and optionally JUDGE0_AUTH_HEADER_NAME in your environment.");
+}
+
+// Language ID mapping for Judge0 API
+// Python 3 = 92, Java = 62, C = 50
+const LANGUAGE_IDS = {
+  python: 71,
+  java: 62,
+  c: 50
+};
+
+// Language name mapping (for display)
+const LANGUAGE_NAMES = {
+  python: "Python 3",
+  java: "Java",
+  c: "C (GCC)"
+};
+
+// Helper function to build Judge0 API headers
+function getJudge0Headers() {
+  const headers = {
+    "Content-Type": "application/json",
+  };
+  
+  // Add authentication header if configured
+  if (process.env.JUDGE0_AUTH_HEADER) {
+    const headerName = process.env.JUDGE0_AUTH_HEADER_NAME || "Authorization";
+    headers[headerName] = process.env.JUDGE0_AUTH_HEADER;
   }
   
-  res.json({
-    status: "ok",
-    firebaseInitialized: firebaseInitialized,
-    dbAvailable: !!db,
-    serviceAccountAvailable: !!serviceAccount,
-    serviceAccountProjectId: serviceAccount ? serviceAccount.project_id : null,
-    nodeEnv: process.env.NODE_ENV || "development",
-    firebaseServiceAccountKeyExists: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-    firebaseServiceAccountKeyLength: process.env.FIREBASE_SERVICE_ACCOUNT_KEY ? process.env.FIREBASE_SERVICE_ACCOUNT_KEY.length : 0,
-    adminAppsCount: admin.apps.length,
-    timestamp: new Date().toISOString()
-  });
+  return headers;
+}
+
+// Code execution endpoint
+app.post("/api/execute", async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { code, language, stdin } = req.body;
+
+    // Validate input
+    if (!code || !language) {
+      return res.status(400).json({ error: "Code and language are required" });
+    }
+
+    // Validate language
+    if (!LANGUAGE_IDS[language]) {
+      return res.status(400).json({ 
+        error: `Unsupported language: ${language}. Supported languages: ${Object.keys(LANGUAGE_IDS).join(", ")}` 
+      });
+    }
+
+    const languageId = LANGUAGE_IDS[language];
+    const languageName = LANGUAGE_NAMES[language];
+
+    console.log(`🚀 Executing ${languageName} code for user: ${req.session.email}`);
+
+    // Step 1: Create submission
+    const submitResponse = await fetch(`${JUDGE0_API_URL}/submissions?base64_encoded=false&wait=false`, {
+      method: "POST",
+      headers: getJudge0Headers(),
+      body: JSON.stringify({
+        source_code: code,
+        language_id: languageId,
+        stdin: stdin || "",
+        cpu_time_limit: 2, // 2 seconds CPU time limit
+        memory_limit: 128000, // 128MB memory limit
+      }),
+    });
+
+    if (!submitResponse.ok) {
+      const errorText = await submitResponse.text();
+      console.error(`❌ Judge0 submission failed: ${submitResponse.status} - ${errorText}`);
+      // Provide a helpful error when authentication is missing/invalid
+      if (submitResponse.status === 401 || submitResponse.status === 403) {
+        return res.status(502).json({ 
+          error: `Judge0 authentication failed (${submitResponse.status}). Please set JUDGE0_AUTH_HEADER (and JUDGE0_AUTH_HEADER_NAME if needed) in your deployment environment.`
+        });
+      }
+      return res.status(500).json({ 
+        error: `Judge0 API error: ${submitResponse.status}. Please try again.` 
+      });
+    }
+
+    const submissionData = await submitResponse.json();
+    const token = submissionData.token;
+
+    if (!token) {
+      console.error("❌ No token received from Judge0");
+      return res.status(500).json({ error: "Failed to get submission token from Judge0" });
+    }
+
+    console.log(`📝 Submission created with token: ${token}`);
+
+    // Step 2: Poll for result (with timeout)
+    const maxAttempts = 30; // Maximum polling attempts
+    const pollInterval = 1000; // 1 second between polls
+    let attempts = 0;
+    let result = null;
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      
+      const statusResponse = await fetch(`${JUDGE0_API_URL}/submissions/${token}?base64_encoded=false`, {
+        method: "GET",
+        headers: getJudge0Headers(),
+      });
+
+      if (!statusResponse.ok) {
+        console.error(`❌ Judge0 status check failed: ${statusResponse.status}`);
+        break;
+      }
+
+      result = await statusResponse.json();
+      attempts++;
+
+      // Status IDs: 1 = In Queue, 2 = Processing, 3 = Accepted, 4+ = Error/Other
+      // If status.id > 2, the submission has completed (successfully or with error)
+      if (result.status && result.status.id > 2) {
+        console.log(`✅ Submission ${token} completed with status: ${result.status.description}`);
+        break;
+      }
+
+      // Still processing
+      console.log(`⏳ Submission ${token} status: ${result.status?.description || "Processing"} (attempt ${attempts}/${maxAttempts})`);
+    }
+
+    // If we exhausted attempts and result is still processing
+    if (result && result.status && result.status.id <= 2) {
+      console.warn(`⚠️ Submission ${token} timed out after ${maxAttempts} attempts`);
+      return res.status(504).json({ 
+        error: "Code execution timed out. Please try again with simpler code." 
+      });
+    }
+
+    if (!result) {
+      return res.status(500).json({ error: "Failed to get execution result from Judge0" });
+    }
+
+    // Format response
+    const response = {
+      stdout: result.stdout || "",
+      stderr: result.stderr || "",
+      compile_output: result.compile_output || "",
+      message: result.message || "",
+      status: {
+        id: result.status?.id || 0,
+        description: result.status?.description || "Unknown"
+      },
+      time: result.time ? parseFloat(result.time).toFixed(2) : null,
+      memory: result.memory || null
+    };
+
+    console.log(`✅ Code execution completed for user: ${req.session.email}`);
+    res.json(response);
+
+  } catch (error) {
+    console.error("❌ Error executing code:", error);
+    res.status(500).json({ 
+      error: `Internal server error: ${error.message}` 
+    });
+  }
 });
 
-// Export for Vercel serverless function
-// Vercel expects a handler function, not the app directly
-module.exports = app;
+// Submission save endpoint (saves code + output to Firestore)
+app.post("/api/submit", async (req, res) => {
+  try {
+    // Check authentication
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
 
-// Also export as handler for Vercel compatibility
-module.exports.handler = app;
+    const { code, language, output, answer, difficulty } = req.body;
 
-// Start server locally (only if not in Vercel environment)
-if (require.main === module) {
-  const PORT = process.env.PORT || 8080;
-  app.listen(PORT, () => {
-    console.log(`✅ Server running on http://localhost:${PORT}`);
-    console.log(`✅ Firebase initialized: ${firebaseInitialized}`);
-    console.log(`✅ Database available: ${!!db}`);
-  });
-}
+    if (!code || !language) {
+      return res.status(400).json({ error: "Code and language are required" });
+    }
+
+    const { teamCode, email } = req.session;
+    if (!teamCode || !email) {
+      return res.status(400).json({ error: "Missing session data" });
+    }
+
+    // Save submission to Firestore
+    await db.collection("submissions").add({
+      teamCode: teamCode,
+      email: email,
+      code: code,
+      language: language,
+      output: output || "",
+      answer: answer || "", // Store answer for easy level
+      difficulty: difficulty || "medium", // Store difficulty level
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`✅ Submission saved for ${email} (Team: ${teamCode}, Difficulty: ${difficulty})`);
+    res.json({ success: true, message: "Submission saved" });
+  } catch (error) {
+    console.error("❌ Error saving submission:", error);
+    res.status(500).json({ error: "Failed to save submission" });
+  }
+});
+
+// Record cheating incidents during contest
+app.post("/api/record-cheating", async (req, res) => {
+  try {
+    // Check authentication
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { cheatingType, timestamp } = req.body;
+
+    if (!cheatingType || !timestamp) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const { teamCode, email } = req.session;
+    if (!teamCode || !email) {
+      return res.status(400).json({ error: "Missing session data" });
+    }
+
+    // Save cheating incident to Firestore
+    await db.collection("cheating_records").add({
+      teamCode: teamCode,
+      email: email,
+      cheatingType: cheatingType,
+      timestamp: new Date(timestamp),
+      recordedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`⚠️ Cheating incident recorded - Type: ${cheatingType}, Team: ${teamCode}, Email: ${email}`);
+    res.json({ success: true, message: "Cheating incident recorded" });
+  } catch (error) {
+    console.error("❌ Error recording cheating incident:", error);
+    res.status(500).json({ error: "Failed to record cheating incident" });
+  }
+});
+
+// Start server
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));

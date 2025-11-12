@@ -11,13 +11,22 @@
     <header>
         <nav class="container">
             <!-- <a href="/" class="logo">CodeWars</a> -->
-             <div class="contest-timer">Time Left: <strong>01:28:45</strong></div>
-            <% if (authorizedEmail) { %>
-                <div class="user-info">
-                    <span class="email"><%= authorizedEmail %></span>
-                    <a href="/logout" class="logout-btn">Logout</a>
-                </div>
-            <% } %>
+            <a class="logo">Hey there!</a>
+            <!-- <div class="contest-timer">Time Left: <strong>01:28:45</strong></div> -->
+            <ul>
+                <!-- <li>
+                    <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                </li> -->
+                <% if (authorizedEmail) { %>
+                    <li>
+                        <div class="user-info">
+                            <span class="email"><%= authorizedEmail %></span>
+                        </div>
+                    </li>
+                <% } %>
+            </ul>
         </nav>
     </header>
 
@@ -30,54 +39,67 @@
         </section>
 
         <section class="contest-list">
-            <h2>Easy</h2>
+            <h2>Easy Level</h2>
             
             <div class="contest-card">
                 <div class="card-content">
-                    <h3>Weekly Challenge #10</h3>
-                    <p>A set of 5 algorithm problems. Ready to test your logic?</p>
-                    <span class="tag">Easy</span>
-                    <span class="tag">Algorithms</span>
+                    <h3>Guess the problem</h3>
+                    <p>Give your inputs, get the output and guess the algorithm.</p>
+                    <!-- <span class="tag">Easy</span>
+                    <span class="tag">Naming</span> -->
                 </div>
                 <div class="card-action">
                     <!-- <span>Starts in: 02:30:15</span> -->
-                    <a href="/contest" class="btn btn-secondary">Solve</a>
+                    <a href="/contest?difficulty=easy" class="btn btn-secondary">Enter Contest</a>
                 </div>
             </div>
 
-            <h2>Medium</h2>
+            <h2>Medium Level</h2>
             <div class="contest-card">
                 <div class="card-content">
-                    <h3>Data Structures Showdown</h3>
-                    <p>Focus on trees, graphs, and hash maps. 3 hours, 4 problems.</p>
-                    <span class="tag">Medium</span>
-                    <span class="tag">Data Structures</span>
+                    <h3>Remove the Bug</h3>
+                    <p>Time to debug the code and get the output</p>
+                    <!-- <span class="tag">Medium</span>
+                    <span class="tag">Data Structures</span> -->
                 </div>
                 <div class="card-action">
                     <!-- <span>Ends in: 2 days</span> -->
-                    <a href="/contest" class="btn btn-secondary">Solve</a>
+                    <a href="/contest?difficulty=medium" class="btn btn-secondary">Enter Contest</a>
                 </div>
             </div>
             
-            <h2>Hard</h2>
+            <h2>Hard Level</h2>
             <div class="contest-card">
                 <div class="card-content">
-                    <h3>The Marathon (24h)</h3>
-                    <p>A 24-hour long challenge. Can you solve all 10 problems?</p>
-                    <span class="tag">Hard</span>
+                    <h3>Problem Solving</h3>
+                    <p>Can you solve the problem-statement?</p>
+                    <!-- <span class="tag">Hard</span> -->
                 </div>
                 <div class="card-action">
                     <!-- <span></span> -->
-                    <a href="/contest" class="btn btn-secondary">Solve</a>
+                    <a href="/contest?difficulty=hard" class="btn btn-secondary">Enter Contest</a>
                 </div>
             </div>
 
         </section>
     </main>
 
+    <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">
+        <span class="theme-icon">🌙</span>
+    </button>
+
     <!-- <footer>
         <p>&copy; 2025 CodeWars. All rights reserved.</p>
     </footer> -->
 
+    <script src="/js/darkmode.js"></script>
+    
+    <script>
+        // Disable back button on landing page
+        window.history.pushState(null, null, window.location.href);
+        window.onpopstate = function() {
+            window.history.pushState(null, null, window.location.href);
+        };
+    </script>
 </body>
 </html>

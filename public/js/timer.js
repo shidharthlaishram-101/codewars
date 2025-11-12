@@ -2,7 +2,7 @@
 
 // 1. Set important target dates and times
 const registrationEnd = new Date("November 12, 2025 22:00:00").getTime();
-const eventStart = new Date("November 13, 2025 10:00:00").getTime();
+const eventStart = new Date("November 12, 2025 10:00:00").getTime();
 
 // 2. Get the elements
 const timerElement = document.getElementById("countdown-timer");

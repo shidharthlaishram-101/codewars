@@ -11,6 +11,32 @@
     --danger-color: #dc3545;
 }
 
+/* Light mode theme */
+[data-theme="light"] {
+    --primary-color: #0056b3;
+    --secondary-color: #6c757d;
+    --bg-color: #ffffff;
+    --surface-color: #f8f9fa;
+    --text-color: #212529;
+    --text-muted: #6c757d;
+    --border-color: #dee2e6;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+}
+
+/* Dark mode theme (default) */
+[data-theme="dark"] {
+    --primary-color: #007bff;
+    --secondary-color: #495057;
+    --bg-color: #1a1a1a;
+    --surface-color: #2c2c2c;
+    --text-color: #f4f4f4;
+    --text-muted: #aaa;
+    --border-color: #444;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+}
+
 /* === Global Styles === */
 * {
     box-sizing: border-box;
@@ -23,6 +49,7 @@ body {
     background-color: var(--bg-color);
     color: var(--text-color);
     line-height: 1.6;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .container {
@@ -56,6 +83,7 @@ header {
     position: sticky;
     top: 0;
     z-index: 1000;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 header nav {
@@ -86,6 +114,39 @@ header nav ul a {
 header nav ul a:hover,
 header nav ul a.active {
     color: var(--text-color);
+}
+
+header nav ul button {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Dark Mode Toggle Button */
+.theme-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 0.5rem 0.75rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+}
+
+.theme-toggle-btn:hover {
+    background-color: var(--surface-color);
+    border-color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+.theme-toggle-btn .theme-icon {
+    display: inline-block;
+    line-height: 1;
 }
 
 /* === Buttons === */
@@ -263,6 +324,39 @@ header nav ul a.active {
     word-wrap: break-word;
 }
 
+/* === Code Snippet Styles === */
+.snippet-card {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+}
+
+.snippet-card strong {
+    color: var(--text-color);
+    font-size: 1rem;
+}
+
+.snippet-card code {
+    font-family: "Fira Code", "Courier New", monospace;
+    color: #d4d4d4;
+}
+
+[data-theme="light"] .snippet-card code {
+    color: #333333;
+}
+
+.snippet-card pre {
+    background-color: var(--bg-color) !important;
+    padding: 0.75rem !important;
+    border-radius: 3px;
+    overflow-x: auto;
+    margin: 0.5rem 0;
+    border: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
 /* Code Sidebar (Right) */
 .code-sidebar {
     flex: 1;
@@ -286,11 +380,12 @@ header nav ul a.active {
     border-bottom: 1px solid var(--border-color);
 }
 .editor-header select {
-    background-color: var(--secondary-color);
+    background-color: var(--surface-color);
     color: var(--text-color);
     border: 1px solid var(--border-color);
     padding: 0.5rem;
     border-radius: 5px;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 #code-editor {
@@ -304,6 +399,14 @@ header nav ul a.active {
     outline: none;
     resize: none;
     line-height: 1.5;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Light mode code editor */
+[data-theme="light"] #code-editor {
+    background-color: #ffffff;
+    color: #333333;
+    border: 1px solid var(--border-color);
 }
 
 .editor-footer {
@@ -317,11 +420,12 @@ header nav ul a.active {
 
 /* Submission Status */
 .submission-status {
-    flex-basis: 200px; /* Fixed height for status */
+    flex-basis: 300px; /* Fixed height for status */
     flex-shrink: 0;
     overflow-y: auto;
     border-top: 1px solid var(--border-color);
     padding: 1rem;
+    background-color: var(--surface-color);
 }
 .submission-status h3 {
     margin-bottom: 1rem;
@@ -336,6 +440,85 @@ header nav ul a.active {
 .status-wrong { color: var(--danger-color); font-weight: bold; }
 .problem-title { color: var(--text-color); }
 .time { color: var(--text-muted); }
+
+/* Output Display Styles */
+#output-content {
+    min-height: 100px;
+}
+
+.output-placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 1rem;
+    text-align: center;
+}
+
+.output-status {
+    padding: 0.75rem 1rem;
+    border-radius: 5px;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.output-status.status-success {
+    background-color: rgba(40, 167, 69, 0.1);
+    border: 1px solid var(--success-color);
+    color: var(--success-color);
+}
+
+.output-status.status-error {
+    background-color: rgba(220, 53, 69, 0.1);
+    border: 1px solid var(--danger-color);
+    color: var(--danger-color);
+}
+
+.output-meta {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin-left: auto;
+}
+
+.output-section {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background-color: var(--bg-color);
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+}
+
+.output-label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.output-label.error-label {
+    color: var(--danger-color);
+}
+
+.output-text {
+    background-color: var(--surface-color);
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-x: auto;
+    color: var(--text-color);
+    margin: 0;
+    border: 1px solid var(--border-color);
+}
+
+.output-text.error-text {
+    color: var(--danger-color);
+    background-color: rgba(220, 53, 69, 0.05);
+}
 
 /* === Responsive Design === */
 @media (max-width: 900px) {
@@ -376,4 +559,134 @@ header nav ul a.active {
     header nav ul a {
         padding: 0.25rem;
     }
+}
+
+/* === Modal Styles === */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 2rem;
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+    animation: slideDown 0.3s ease;
+}
+
+.modal-content h2 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+}
+
+.modal-content p {
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+.modal-content .btn {
+    margin-top: 1.5rem;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* === Disclaimer Modal Styles === */
+.disclaimer-body {
+    max-height: 60vh;
+    overflow-y: auto;
+    margin-bottom: 1.5rem;
+    padding-right: 0.5rem;
+}
+
+.disclaimer-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.disclaimer-body::-webkit-scrollbar-track {
+    background: var(--bg-color);
+    border-radius: 10px;
+}
+
+.disclaimer-body::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+
+.disclaimer-body::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+.disclaimer-body h3 {
+    color: var(--text-color);
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+}
+
+.disclaimer-body h4 {
+    color: var(--text-color);
+    font-size: 1rem;
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+
+.disclaimer-body ul {
+    list-style: disc;
+    padding-left: 20px;
+    margin: 0.5rem 0;
+}
+
+.disclaimer-body ul li {
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+.disclaimer-body strong {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.modal-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.modal-header h2 {
+    color: var(--primary-color);
+    margin: 0;
 }
