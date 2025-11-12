@@ -98,5 +98,6 @@ window.startTimer = startTimer;
 window.stopTimer = stopTimer;
 window.initializeTimer = initializeTimer;
 
-// Start the countdown when page loads
-window.addEventListener('load', startTimer);
+// Timer will be started by acceptDisclaimer() function when user accepts the disclaimer
+// Do NOT auto-start on page load anymore
+console.log('⏱️ Timer script loaded - will start when user accepts disclaimer');

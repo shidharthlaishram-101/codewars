@@ -23,7 +23,6 @@
                     <li>
                         <div class="user-info">
                             <span class="email"><%= authorizedEmail %></span>
-                            <!-- <a href="/logout" class="logout-btn">Logout</a> -->
                         </div>
                     </li>
                 <% } %>
@@ -95,5 +94,12 @@
 
     <script src="/js/darkmode.js"></script>
     
+    <script>
+        // Disable back button on landing page
+        window.history.pushState(null, null, window.location.href);
+        window.onpopstate = function() {
+            window.history.pushState(null, null, window.location.href);
+        };
+    </script>
 </body>
 </html>

@@ -437,7 +437,10 @@ app.post("/end-contest-session", async (req, res) => {
     }
 
     // Calculate time completed
-    const contestStartTime = req.session.contestStartTime || Date.now();
+     // Get the disclaimer acceptance time from the request body (sent from frontend)
+     // This ensures we count time from when user accepted disclaimer, not page load
+     const { disclaimerAcceptedTime } = req.body;
+     const contestStartTime = disclaimerAcceptedTime ? parseInt(disclaimerAcceptedTime) : (req.session.contestStartTime || Date.now());
     const contestEndTime = Date.now();
     const timeElapsedMs = contestEndTime - contestStartTime;
     const timeElapsedHours = timeElapsedMs / (1000 * 60 * 60);

@@ -23,22 +23,25 @@ A comprehensive cheating detection system that monitors user behavior during the
 - **Action:** Records `fullscreen_exit` incident
 
 ### 4. **Right-Click Attempt** 🖱️
-- **Trigger:** User attempts to right-click (inspect element, copy)
+- **Trigger:** User attempts to right-click (inspect element)
 - **Detection:** `contextmenu` event
 - **Action:** 
   - Prevents default right-click menu
   - Records `right_click` incident
   - Shows alert to user
 
-### 5. **Copy Attempt** 📋
-- **Trigger:** User tries to copy text (Ctrl+C, Cmd+C)
-- **Detection:** `copy` event
-- **Action:**
-  - Prevents clipboard copy
-  - Records `copy_attempt` incident
-  - Shows alert to user
-
 ---
+
+## Cheating Types Tracked
+
+| Type | Detection | Action | Purpose |
+|------|-----------|--------|---------|
+| `tab_switch` | visibilitychange | Records incident | Detect leaving contest |
+| `window_blur` | blur event | Records incident | Detect clicking outside window |
+| `right_click` | contextmenu event | Blocks + Records | Prevent inspect element |
+| `fullscreen_exit` | fullscreenchange event | Records incident | Detect exiting fullscreen |
+
+**Note:** Copy/paste detection was removed to allow users to copy code snippets from problem statements.
 
 ## How It Works
 
@@ -67,7 +70,7 @@ Saves to Firestore collection: "cheating_records"
 Contains:
   - teamCode
   - email
-  - cheatingType (tab_switch, window_blur, right_click, copy_attempt, fullscreen_exit)
+  - cheatingType (tab_switch, window_blur, right_click, fullscreen_exit)
   - timestamp (when incident occurred)
   - recordedAt (server timestamp)
 ```
@@ -98,7 +101,7 @@ When user clicks "End Session" button:
 {
   teamCode: "TEAM001",
   email: "user@example.com",
-  cheatingType: "tab_switch",              // or: window_blur, right_click, copy_attempt, fullscreen_exit
+  cheatingType: "tab_switch",              // or: window_blur, right_click, fullscreen_exit
   timestamp: ISOString,                     // When incident occurred (client time)
   recordedAt: serverTimestamp               // When recorded on server
 }

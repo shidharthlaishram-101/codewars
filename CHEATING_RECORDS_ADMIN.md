@@ -77,8 +77,9 @@ Each cheating record contains:
 | `tab_switch` | User switched to another tab | Blue |
 | `window_blur` | Browser window lost focus | Red |
 | `right_click` | Right-click attempt on contest page | Green |
-| `copy_attempt` | Copy action detected | Yellow |
 | `fullscreen_exit` | User exited fullscreen mode | Purple |
+
+**Note:** Copy/paste detection was removed to allow users to copy code snippets from problem statements.
 
 ## UI Components
 
