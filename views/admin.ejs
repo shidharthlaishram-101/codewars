@@ -254,6 +254,113 @@
       border: 1px solid #f5c6cb;
       display: block;
     }
+
+    .cheating-summary {
+      margin-bottom: 2rem;
+    }
+
+    .summary-card {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .summary-card h3 {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin: 0 0 0.5rem 0;
+      text-transform: uppercase;
+    }
+
+    .summary-card .value {
+      color: var(--primary-color);
+      font-size: 2rem;
+      font-weight: bold;
+    }
+
+    .cheating-records-container {
+      overflow-x: auto;
+    }
+
+    .cheating-table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .cheating-table thead {
+      background-color: var(--bg-color);
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .cheating-table th {
+      padding: 1rem;
+      text-align: left;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+    }
+
+    .cheating-table td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .cheating-table tbody tr:hover {
+      background-color: rgba(0, 123, 255, 0.05);
+    }
+
+    .cheating-type-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge-tab-switch {
+      background-color: #cfe2ff;
+      color: #084298;
+    }
+
+    .badge-window-blur {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+
+    .badge-right-click {
+      background-color: #d1e7dd;
+      color: #0f5132;
+    }
+
+    .badge-copy-attempt {
+      background-color: #fff3cd;
+      color: #664d03;
+    }
+
+    .badge-fullscreen-exit {
+      background-color: #d3d3f8;
+      color: #3f38b8;
+    }
+
+    .no-records {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
   </style>
 </head>
 <body>
@@ -263,6 +370,7 @@
     <div class="tabs">
       <button class="tab-button active" onclick="switchTab('teams')">Registered Teams</button>
       <button class="tab-button" onclick="switchTab('problems')">Problem Management</button>
+      <button class="tab-button" onclick="switchTab('cheating')">Cheating Records</button>
     </div>
 
     <!-- Teams Tab -->
@@ -345,6 +453,34 @@
         <!-- Problems will be loaded here -->
       </div>
     </div>
+
+    <!-- Cheating Records Tab -->
+    <div id="cheating" class="tab-content">
+      <h1>Cheating Records</h1>
+      <p class="subtitle">Monitor integrity violations and suspicious activities</p>
+
+      <div id="cheatingSummary" class="cheating-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <!-- Summary cards will be loaded here -->
+      </div>
+
+      <div class="cheating-filters" style="margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+        <input type="text" id="filterTeamCode" placeholder="Filter by Team Code..." style="flex: 1; min-width: 200px;">
+        <input type="text" id="filterEmail" placeholder="Filter by Email..." style="flex: 1; min-width: 200px;">
+        <select id="filterCheatingType" style="flex: 1; min-width: 150px;">
+          <option value="">All Cheating Types</option>
+          <option value="tab_switch">Tab Switch</option>
+          <option value="window_blur">Window Blur</option>
+          <option value="right_click">Right Click</option>
+          <option value="copy_attempt">Copy Attempt</option>
+          <option value="fullscreen_exit">Fullscreen Exit</option>
+        </select>
+        <button class="btn btn-primary" onclick="loadCheatingRecords()" style="flex: 0 0 auto;">Refresh</button>
+      </div>
+
+      <div id="cheatingRecordsContainer" class="cheating-records-container">
+        <!-- Cheating records table will be loaded here -->
+      </div>
+    </div>
   </main>
 
   <!-- Add/Edit Problem Modal -->
@@ -407,6 +543,15 @@
           </label>
         </div>
 
+        <!-- Code Snippets Section -->
+        <div class="form-group">
+          <label>Code Snippets</label>
+          <div id="snippetsContainer" class="array-input-group">
+            <!-- Snippets will be added here -->
+          </div>
+          <button type="button" class="add-btn" onclick="addSnippet()">+ Add Code Snippet</button>
+        </div>
+
         <div class="form-group">
           <button type="submit" class="btn btn-primary">Save Problem</button>
           <button type="button" class="btn btn-secondary" onclick="closeProblemModal()">Cancel</button>
@@ -436,6 +581,11 @@
       // Load problems if switching to problems tab
       if (tabName === 'problems') {
         loadProblems();
+      }
+
+      // Load cheating records if switching to cheating tab
+      if (tabName === 'cheating') {
+        loadCheatingRecords();
       }
     }
   </script>

@@ -356,6 +356,35 @@ app.get("/api/problems", async (req, res) => {
   }
 });
 
+// Fetch code snippets for a problem
+app.get("/api/snippets/:problemId", async (req, res) => {
+  try {
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { problemId } = req.params;
+
+    const snapshot = await db.collection("code_snippets")
+      .where("problemId", "==", problemId)
+      .get();
+
+    const snippets = [];
+    snapshot.forEach(doc => {
+      snippets.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+
+    console.log(`✅ Fetched ${snippets.length} code snippets for problem: ${problemId}`);
+    res.json({ snippets });
+  } catch (error) {
+    console.error("❌ Error fetching code snippets:", error);
+    res.status(500).json({ error: "Failed to fetch code snippets" });
+  }
+});
+
 app.get("/contest", (req, res) => {
   // Check if user is authenticated
   if (!req.session || !req.session.authenticated) {
@@ -510,7 +539,7 @@ app.post("/feedback", async (req, res) => {
 });
 
 // Judge0 API Configuration
-const JUDGE0_API_URL = process.env.JUDGE0_API_URL || "https://api.shidharthlaishram101.online";
+const JUDGE0_API_URL = process.env.JUDGE0_API_URL || "https://judgeapi.shidharthlaishram101.online";
 // Optional: Add authentication headers if your Judge0 API requires them
 // const JUDGE0_AUTH_HEADER = process.env.JUDGE0_AUTH_HEADER; // e.g., "Bearer your-token" or "X-RapidAPI-Key: your-key"
 // const JUDGE0_AUTH_HEADER_NAME = process.env.JUDGE0_AUTH_HEADER_NAME || "Authorization";
@@ -695,7 +724,7 @@ app.post("/api/submit", async (req, res) => {
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    const { code, language, output } = req.body;
+    const { code, language, output, answer, difficulty } = req.body;
 
     if (!code || !language) {
       return res.status(400).json({ error: "Code and language are required" });
@@ -713,14 +742,52 @@ app.post("/api/submit", async (req, res) => {
       code: code,
       language: language,
       output: output || "",
+      answer: answer || "", // Store answer for easy level
+      difficulty: difficulty || "medium", // Store difficulty level
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    console.log(`✅ Submission saved for ${email} (Team: ${teamCode})`);
+    console.log(`✅ Submission saved for ${email} (Team: ${teamCode}, Difficulty: ${difficulty})`);
     res.json({ success: true, message: "Submission saved" });
   } catch (error) {
     console.error("❌ Error saving submission:", error);
     res.status(500).json({ error: "Failed to save submission" });
+  }
+});
+
+// Record cheating incidents during contest
+app.post("/api/record-cheating", async (req, res) => {
+  try {
+    // Check authentication
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { cheatingType, timestamp } = req.body;
+
+    if (!cheatingType || !timestamp) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const { teamCode, email } = req.session;
+    if (!teamCode || !email) {
+      return res.status(400).json({ error: "Missing session data" });
+    }
+
+    // Save cheating incident to Firestore
+    await db.collection("cheating_records").add({
+      teamCode: teamCode,
+      email: email,
+      cheatingType: cheatingType,
+      timestamp: new Date(timestamp),
+      recordedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`⚠️ Cheating incident recorded - Type: ${cheatingType}, Team: ${teamCode}, Email: ${email}`);
+    res.json({ success: true, message: "Cheating incident recorded" });
+  } catch (error) {
+    console.error("❌ Error recording cheating incident:", error);
+    res.status(500).json({ error: "Failed to record cheating incident" });
   }
 });
 

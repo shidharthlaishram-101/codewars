@@ -67,11 +67,17 @@ def solve():
 
             <div class="submission-status">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3>Output</h3>
+                    <h3>Output & Answer</h3>
                     <button id="clear-output-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Clear</button>
                 </div>
+                
                 <div id="output-content">
                     <p class="output-placeholder">Output will appear here...</p>
+                </div>
+
+                <div id="answer-section" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+                    <label for="answer-input" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Problem Answer/Algorithm (for Easy level):</label>
+                    <textarea id="answer-input" placeholder="Type your answer or guess the algorithm here..." style="width: 100%; min-height: 100px; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 5px; font-family: inherit; resize: vertical;"></textarea>
                 </div>
             </div>
         </main>
@@ -93,6 +99,110 @@ def solve():
     <script src="/js/timer_contest.js"></script>
     <script src="/js/contest.js"></script>
     <script>
+        // ============= CHEATING DETECTION MECHANISM =============
+        let isCheatingDetectionActive = true;
+        let cheatingCount = 0;
+
+        // Detect when user leaves the page/tab
+        document.addEventListener('visibilitychange', function() {
+            if (isCheatingDetectionActive) {
+                if (document.hidden) {
+                    // User switched tab/minimized window
+                    console.warn('⚠️ User left the contest page');
+                    cheatingCount++;
+                    recordCheating('tab_switch');
+                } else {
+                    console.log('✓ User returned to contest page');
+                }
+            }
+        });
+
+        // Detect when window loses focus
+        window.addEventListener('blur', function() {
+            if (isCheatingDetectionActive && !document.hidden) {
+                // User clicked outside the window but tab is still visible
+                console.warn('⚠️ User window lost focus');
+                cheatingCount++;
+                recordCheating('window_blur');
+            }
+        });
+
+        // Detect full-screen exit
+        document.addEventListener('fullscreenchange', function() {
+            if (isCheatingDetectionActive && !document.fullscreenElement) {
+                console.warn('⚠️ User exited full-screen mode');
+                cheatingCount++;
+                recordCheating('fullscreen_exit');
+            }
+        });
+
+        // Detect right-click (trying to inspect/copy)
+        document.addEventListener('contextmenu', function(e) {
+            if (isCheatingDetectionActive) {
+                e.preventDefault();
+                console.warn('⚠️ Right-click attempt detected');
+                cheatingCount++;
+                recordCheating('right_click');
+                alert('Right-click is disabled during the contest');
+                return false;
+            }
+        });
+
+        // Detect Ctrl+C copy attempt
+        document.addEventListener('copy', function(e) {
+            if (isCheatingDetectionActive) {
+                e.preventDefault();
+                console.warn('⚠️ Copy attempt detected');
+                cheatingCount++;
+                recordCheating('copy_attempt');
+                alert('Copying is disabled during the contest');
+            }
+        });
+
+        // Function to record cheating incident
+        async function recordCheating(type) {
+            try {
+                const response = await fetch('/api/record-cheating', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        cheatingType: type,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (response.ok) {
+                    console.log('✓ Cheating incident recorded');
+                } else {
+                    console.error('Failed to record cheating incident');
+                }
+            } catch (error) {
+                console.error('Error recording cheating:', error);
+            }
+        }
+
+        // Override End Session button to disable cheating detection
+        document.addEventListener('DOMContentLoaded', function() {
+            const endSessionBtn = document.getElementById('end-session-btn');
+            if (endSessionBtn) {
+                const originalOnClick = endSessionBtn.onclick;
+                endSessionBtn.addEventListener('click', async function(e) {
+                    // Disable cheating detection
+                    isCheatingDetectionActive = false;
+                    console.log('✓ Cheating detection disabled');
+                });
+            }
+        });
+
+        // Disable cheating detection when page unloads (after session ends)
+        window.addEventListener('beforeunload', function() {
+            isCheatingDetectionActive = false;
+        });
+    </script>
+    <script>
         // End Session button handler
         document.addEventListener('DOMContentLoaded', function() {
             const endSessionBtn = document.getElementById('end-session-btn');
@@ -100,6 +210,9 @@ def solve():
                 endSessionBtn.addEventListener('click', async function() {
                     // Confirm action
                     if (confirm('Are you sure you want to end your contest session? You will be redirected to the feedback page.')) {
+                        // Disable cheating detection
+                        isCheatingDetectionActive = false;
+                        
                         try {
                             // Call endpoint to mark contest as ended
                             const response = await fetch('/end-contest-session', {

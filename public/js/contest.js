@@ -14,6 +14,7 @@
  // Store problems data
  let problemsData = [];
  let currentProblemIndex = 0;
+ let currentDifficulty = 'easy'; // Store the current difficulty level
  // Language-specific code templates
 const codeTemplates = {
   python: `# Write your code here
@@ -58,6 +59,7 @@ async function loadProblems() {
   try {
     const urlParams = new URLSearchParams(window.location.search);
     const difficulty = urlParams.get('difficulty') || 'easy';
+    currentDifficulty = difficulty;
     
   const response = await fetch(`/api/problems?difficulty=${difficulty}`, { credentials: 'include' });
     const data = await response.json();
@@ -105,12 +107,29 @@ function renderProblemList() {
     a.textContent = problem.title || `Problem ${index + 1}`;
     a.addEventListener('click', function(e) {
       e.preventDefault();
-      goToQuestion(index);
+      displayProblem(index);
     });
     
     li.appendChild(a);
     problemListEl.appendChild(li);
   });
+}
+
+// Update the active problem in the sidebar list
+function updateActiveProblem(index) {
+  const problemListEl = document.getElementById('problem-list');
+  if (!problemListEl) return;
+  
+  // Remove active class from all items
+  const allItems = problemListEl.querySelectorAll('li');
+  allItems.forEach(item => {
+    item.classList.remove('active');
+  });
+  
+  // Add active class to the current item
+  if (allItems[index]) {
+    allItems[index].classList.add('active');
+  }
 }
 
 // Display problem statement
@@ -129,7 +148,7 @@ function displayProblem(index) {
   if (problem.difficulty) {
     html += `<span class="tag">${problem.difficulty}</span>`;
   }
-  
+
   if (problem.description) {
     html += `<p>${problem.description}</p>`;
   }
@@ -144,7 +163,7 @@ function displayProblem(index) {
     });
   }
   
-  if (problem.constraints && Array.isArray(problem.constraints)) {
+  if (problem.constraints && Array.isArray(problem.constraints) && problem.constraints.length > 0) {
     html += `<h3>Constraints:</h3><ul>`;
     problem.constraints.forEach(constraint => {
       html += `<li><code>${constraint}</code></li>`;
@@ -154,8 +173,68 @@ function displayProblem(index) {
   
   problemStatementEl.innerHTML = html;
   
+  // Load and display code snippets
+  loadAndDisplaySnippets(problem.id);
+  
+  // Update active problem in sidebar
+  updateActiveProblem(index);
+  
+  // Show answer section only for easy level
+  const answerSection = document.getElementById('answer-section');
+  const answerInput = document.getElementById('answer-input');
+  if (answerSection) {
+    if (currentDifficulty === 'easy') {
+      answerSection.style.display = 'block';
+      // Clear previous answer
+      if (answerInput) {
+        answerInput.value = '';
+      }
+    } else {
+      answerSection.style.display = 'none';
+    }
+  }
+  
   // Update navigation buttons
   updateNavigationButtons(index);
+}
+
+// Load and display code snippets for the current problem
+async function loadAndDisplaySnippets(problemId) {
+  try {
+    const response = await fetch(`/api/snippets/${problemId}`, { credentials: 'include' });
+    const data = await response.json();
+    
+    if (!response.ok) {
+      console.error('Error loading snippets:', data.error);
+      return;
+    }
+    
+    const snippets = data.snippets || [];
+    const problemStatementEl = document.getElementById('problem-statement');
+    
+    if (snippets.length > 0 && problemStatementEl) {
+      let snippetsHTML = '<h3>Code Snippets:</h3>';
+      
+      snippets.forEach((snippet, index) => {
+        snippetsHTML += `
+          <div class="snippet-card" style="margin-bottom: 1rem; padding: 1rem; background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 5px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <strong>${snippet.title || `Snippet ${index + 1}`}</strong>
+              <span style="font-size: 0.85rem; color: var(--primary-color); font-weight: 500;">${snippet.language.toUpperCase()}</span>
+            </div>
+            ${snippet.description ? `<p style="margin: 0.5rem 0; font-size: 0.9rem; color: var(--text-muted);">${snippet.description}</p>` : ''}
+            <pre style="background-color: var(--bg-color); padding: 0.75rem; border-radius: 3px; overflow-x: auto; margin: 0.5rem 0;"><code>${escapeHtml(snippet.code)}</code></pre>
+          </div>
+        `;
+      });
+      
+      // Append snippets to problem statement
+      problemStatementEl.innerHTML += snippetsHTML;
+      console.log(`✅ Loaded ${snippets.length} code snippets for problem ${problemId}`);
+    }
+  } catch (error) {
+    console.error('Error loading snippets:', error);
+  }
 }
 
 // Show error in problem area
@@ -180,6 +259,8 @@ document.addEventListener("DOMContentLoaded", async function() {
   submitCodeBtn = document.getElementById("submit-code-btn");
   outputContent = document.getElementById("output-content");
   clearOutputBtn = document.getElementById("clear-output-btn");
+  
+  console.log('🔍 Contest page initialized');
   
   // Initialize code editor
   if (codeEditor && languageSelect) {
@@ -430,6 +511,19 @@ async function submitCode() {
     return;
   }
 
+  // Get answer if it's easy level
+  let answer = '';
+  if (currentDifficulty === 'easy') {
+    const answerInput = document.getElementById('answer-input');
+    if (answerInput) {
+      answer = answerInput.value.trim();
+      if (!answer) {
+        displayError("Please provide an answer/algorithm guess for easy level problems.");
+        return;
+      }
+    }
+  }
+
   // Determine output to send: prefer stdout, then stderr, compile_output, message
   let outputToStore = "";
   if (lastExecutionResult) {
@@ -453,7 +547,9 @@ async function submitCode() {
       body: JSON.stringify({
         code: code,
         language: language,
-        output: outputToStore // may be blank string
+        output: outputToStore, // may be blank string
+        answer: answer, // Include answer for easy level
+        difficulty: currentDifficulty
       })
     });
 

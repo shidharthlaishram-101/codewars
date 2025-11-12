@@ -324,6 +324,39 @@ header nav ul button {
     word-wrap: break-word;
 }
 
+/* === Code Snippet Styles === */
+.snippet-card {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+}
+
+.snippet-card strong {
+    color: var(--text-color);
+    font-size: 1rem;
+}
+
+.snippet-card code {
+    font-family: "Fira Code", "Courier New", monospace;
+    color: #d4d4d4;
+}
+
+[data-theme="light"] .snippet-card code {
+    color: #333333;
+}
+
+.snippet-card pre {
+    background-color: var(--bg-color) !important;
+    padding: 0.75rem !important;
+    border-radius: 3px;
+    overflow-x: auto;
+    margin: 0.5rem 0;
+    border: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
 /* Code Sidebar (Right) */
 .code-sidebar {
     flex: 1;
