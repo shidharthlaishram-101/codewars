@@ -470,6 +470,47 @@ app.get("/api/admin/cheating-statistics", async (req, res) => {
   }
 });
 
+// ✅ Get submissions for admin review
+app.get('/api/admin/submissions', async (req, res) => {
+  try {
+    const snapshot = await db.collection('submissions').orderBy('createdAt', 'desc').limit(500).get();
+    const submissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ submissions });
+  } catch (error) {
+    console.error('❌ Error fetching submissions for admin:', error);
+    res.status(500).json({ error: 'Failed to fetch submissions' });
+  }
+});
+
+// ✅ Evaluate a submission (accept/reject)
+app.post('/api/admin/submissions/:id/evaluate', async (req, res) => {
+  try {
+    const submissionId = req.params.id;
+    const { evaluationStatus, score, comments } = req.body;
+
+    if (!submissionId || !evaluationStatus) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const updateData = {
+      evaluated: true,
+      evaluationStatus,
+      evaluatedBy: 'admin',
+      evaluatedAt: new Date()
+    };
+
+    if (typeof score !== 'undefined') updateData.score = score;
+    if (typeof comments !== 'undefined') updateData.evaluationComments = comments;
+
+    await db.collection('submissions').doc(submissionId).update(updateData);
+
+    res.json({ success: true, message: 'Submission evaluated' });
+  } catch (error) {
+    console.error('❌ Error evaluating submission:', error);
+    res.status(500).json({ error: 'Failed to evaluate submission' });
+  }
+});
+
 // ✅ Run Admin Server
 const PORT = process.env.ADMIN_PORT || 8081;
 app.listen(PORT, () => console.log(`🚀 Admin server running at http://localhost:${PORT}/admin`));

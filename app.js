@@ -543,6 +543,59 @@ app.post("/end-contest-session", async (req, res) => {
   }
 });
 
+// --- Admin: fetch submissions for review ---
+app.get('/api/admin/submissions', async (req, res) => {
+  try {
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const snapshot = await db.collection('submissions').orderBy('createdAt', 'desc').limit(500).get();
+    const submissions = [];
+    snapshot.forEach(doc => {
+      submissions.push({ id: doc.id, ...doc.data() });
+    });
+
+    res.json({ submissions });
+  } catch (error) {
+    console.error('❌ Error fetching submissions for admin:', error);
+    res.status(500).json({ error: 'Failed to fetch submissions' });
+  }
+});
+
+// --- Admin: evaluate a submission (mark accepted/rejected or score) ---
+app.post('/api/admin/submissions/:id/evaluate', async (req, res) => {
+  try {
+    if (!req.session || !req.session.authenticated) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const submissionId = req.params.id;
+    const { evaluationStatus, score, comments } = req.body;
+
+    if (!submissionId || !evaluationStatus) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const updateData = {
+      evaluated: true,
+      evaluationStatus,
+      evaluatedBy: req.session.email || 'admin',
+      evaluatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    if (typeof score !== 'undefined') updateData.score = score;
+    if (typeof comments !== 'undefined') updateData.evaluationComments = comments;
+
+    await db.collection('submissions').doc(submissionId).update(updateData);
+
+    res.json({ success: true, message: 'Submission evaluated' });
+  } catch (error) {
+    console.error('❌ Error evaluating submission:', error);
+    res.status(500).json({ error: 'Failed to evaluate submission' });
+  }
+});
+
 // Feedback page
 app.get("/feedback", (req, res) => {
   // Check if user is authenticated

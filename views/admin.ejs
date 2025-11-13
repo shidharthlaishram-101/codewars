@@ -364,6 +364,7 @@
     <!-- Tabs Navigation -->
     <div class="tabs">
       <button class="tab-button active" onclick="switchTab('teams')">Registered Teams</button>
+      <button class="tab-button" onclick="switchTab('submissions')">Submissions</button>
       <button class="tab-button" onclick="switchTab('problems')">Problem Management</button>
       <button class="tab-button" onclick="switchTab('cheating')">Cheating Records</button>
     </div>
@@ -433,6 +434,28 @@
       <% } else { %>
         <p class="no-data">No registered teams found.</p>
       <% } %>
+    </div>
+
+    <!-- Submissions Tab -->
+    <div id="submissions" class="tab-content">
+      <h1>Team Submissions</h1>
+      <p class="subtitle">View and quickly evaluate team submissions</p>
+
+      <div class="cheating-filters" style="margin-bottom: 1rem; display:flex; gap:1rem; flex-wrap:wrap;">
+        <input type="text" id="filterSubmissionTeam" placeholder="Filter by Team Code..." style="min-width:200px; flex:1">
+        <input type="text" id="filterSubmissionEmail" placeholder="Filter by Email..." style="min-width:200px; flex:1">
+        <select id="filterSubmissionDifficulty" style="min-width:150px;">
+          <option value="">All Difficulties</option>
+          <option value="easy">Easy</option>
+          <option value="medium">Medium</option>
+          <option value="hard">Hard</option>
+        </select>
+        <button class="btn btn-primary" onclick="loadSubmissions()" style="flex:0 0 auto;">Refresh</button>
+      </div>
+
+      <div id="submissionsContainer">
+        <!-- Submissions table will be rendered here -->
+      </div>
     </div>
 
     <!-- Problems Tab -->
@@ -580,6 +603,10 @@
       // Load cheating records if switching to cheating tab
       if (tabName === 'cheating') {
         loadCheatingRecords();
+      }
+      // Load submissions if switching to submissions tab
+      if (tabName === 'submissions') {
+        loadSubmissions();
       }
     }
   </script>

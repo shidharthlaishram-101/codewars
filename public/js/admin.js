@@ -664,4 +664,153 @@ document.addEventListener('DOMContentLoaded', function() {
       element.addEventListener('change', loadCheatingRecords);
     }
   });
+  
+  // Submission filters
+  const subFilters = ['filterSubmissionTeam', 'filterSubmissionEmail', 'filterSubmissionDifficulty'];
+  subFilters.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', () => {
+        // small debounce could be added, for now just reload
+        loadSubmissions();
+      });
+      el.addEventListener('change', loadSubmissions);
+    }
+  });
 });
+
+// ===================== SUBMISSIONS MANAGEMENT =====================
+
+// Load submissions for admin review
+async function loadSubmissions() {
+  try {
+    const container = document.getElementById('submissionsContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="loading">Loading submissions...</div>';
+
+    const response = await fetch('/api/admin/submissions', { credentials: 'include' });
+    if (!response.ok) {
+      container.innerHTML = '<div class="no-records">Failed to load submissions</div>';
+      return;
+    }
+
+    const data = await response.json();
+    let submissions = data.submissions || [];
+
+    // Apply client-side filters
+    const teamFilter = (document.getElementById('filterSubmissionTeam')?.value || '').toLowerCase();
+    const emailFilter = (document.getElementById('filterSubmissionEmail')?.value || '').toLowerCase();
+    const diffFilter = (document.getElementById('filterSubmissionDifficulty')?.value || '').toLowerCase();
+
+    if (teamFilter) submissions = submissions.filter(s => (s.teamCode || '').toLowerCase().includes(teamFilter));
+    if (emailFilter) submissions = submissions.filter(s => (s.email || '').toLowerCase().includes(emailFilter));
+    if (diffFilter) submissions = submissions.filter(s => (s.difficulty || '').toLowerCase() === diffFilter);
+
+    displaySubmissionsTable(submissions);
+  } catch (error) {
+    console.error('Error loading submissions:', error);
+    const container = document.getElementById('submissionsContainer');
+    if (container) container.innerHTML = '<div class="no-records">Error loading submissions</div>';
+  }
+}
+
+function displaySubmissionsTable(submissions) {
+  const container = document.getElementById('submissionsContainer');
+  if (!container) return;
+
+  if (!submissions || submissions.length === 0) {
+    container.innerHTML = '<div class="no-records">No submissions found.</div>';
+    return;
+  }
+
+  let html = `
+    <table class="cheating-table">
+      <thead>
+        <tr>
+          <th>Team Code</th>
+          <th>Email</th>
+          <th>Difficulty</th>
+          <th>Language</th>
+          <th>Submitted At</th>
+          <th>Answer / Output</th>
+          <th>Evaluation</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  submissions.forEach(s => {
+    const submittedAt = s.createdAt ? new Date(s.createdAt._seconds * 1000).toLocaleString() : 'N/A';
+    const evaluation = s.evaluated ? `${s.evaluationStatus || 'Reviewed'} by ${s.evaluatedBy || 'admin'}` : 'Pending';
+    const output = s.output || s.answer || '';
+
+    html += `
+      <tr id="submission-${s.id}">
+        <td><strong>${s.teamCode || ''}</strong></td>
+        <td>${s.email || ''}</td>
+        <td style="text-transform:capitalize">${s.difficulty || ''}</td>
+        <td>${s.language || ''}</td>
+        <td>${submittedAt}</td>
+        <td><pre style="white-space:pre-wrap; max-width:400px; overflow:auto;">${escapeHtml(output)}</pre></td>
+        <td>${evaluation}</td>
+        <td>
+          <button class="btn btn-primary" onclick="evaluateSubmission('${s.id}','accepted')">Accept</button>
+          <button class="btn btn-danger" onclick="evaluateSubmission('${s.id}','rejected')">Reject</button>
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  container.innerHTML = html;
+}
+
+// Evaluate a submission (accept/reject)
+async function evaluateSubmission(submissionId, status) {
+  try {
+    const resp = await fetch(`/api/admin/submissions/${submissionId}/evaluate`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ evaluationStatus: status })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      alert('Failed to evaluate submission: ' + (err.error || resp.statusText));
+      return;
+    }
+
+    // Update row UI
+    const row = document.getElementById(`submission-${submissionId}`);
+    if (row) {
+      const evalCell = row.children[6];
+      if (evalCell) evalCell.textContent = `${status === 'accepted' ? 'Accepted' : 'Rejected'} by ${document.cookie || 'admin'}`;
+    }
+
+    alert('Submission marked ' + status);
+  } catch (error) {
+    console.error('Error evaluating submission:', error);
+    alert('Error evaluating submission');
+  }
+}
+
+// Small helper to escape HTML when rendering outputs
+function escapeHtml(unsafe) {
+  if (!unsafe) return '';
+  return unsafe.replace(/[&<>"'`]/g, function(m) {
+    return ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;',
+      '`': '&#x60;'
+    })[m];
+  });
+}
