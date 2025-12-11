@@ -8,3 +8,14 @@ yarn-debug.log
 yarn-error.log
 serviceAccountKey.json
 firebase-diagnostics.html
+CHEATING_DETECTION.md
+CHEATING_RECORDS_ADMIN.md
+COPY_PASTE_REMOVAL.md
+DISCLAIMER_FEATURE.md
+FIREBASE_CONFIG_SETUP.md
+JUDGE0_SETUP.md
+NAVIGATION_FIX.md
+TIMER_DISCLAIMER_INTEGRATION.md
+VERCEL_DEPLOYMENT.md
+VERCEL_ENV_SETUP.md
+serviceAccountKEY-singleline.txt
