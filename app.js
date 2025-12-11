@@ -650,7 +650,7 @@ app.post("/feedback", async (req, res) => {
 });
 
 // Judge0 API Configuration
-const JUDGE0_API_URL = process.env.JUDGE0_API_URL || "https://compiler.shidharthlaishram101.online";
+const JUDGE0_API_URL = process.env.JUDGE0_API_URL || "https://compilerjudge.shidharthlaishram101.online";
 // Optional: Add authentication headers if your Judge0 API requires them
 // const JUDGE0_AUTH_HEADER = process.env.JUDGE0_AUTH_HEADER; // e.g., "Bearer your-token" or "X-RapidAPI-Key: your-key"
 // const JUDGE0_AUTH_HEADER_NAME = process.env.JUDGE0_AUTH_HEADER_NAME || "Authorization";
